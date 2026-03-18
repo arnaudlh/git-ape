@@ -6,6 +6,9 @@
 
 name: "AutoCloud: Deploy"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   # Trigger 1: PR merged to main with deployment artifacts
   push:
@@ -40,7 +43,7 @@ jobs:
     steps:
       - name: Check comment and PR status
         id: check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const comment = context.payload.comment.body.trim();
@@ -110,7 +113,7 @@ jobs:
       deployment_ids: ${{ steps.find.outputs.deployment_ids }}
       has_deployments: ${{ steps.find.outputs.has_deployments }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.check-comment-trigger.outputs.pr_ref || github.ref }}
           fetch-depth: 0
@@ -154,7 +157,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.check-comment-trigger.outputs.pr_ref || github.ref }}
 
@@ -184,7 +187,7 @@ jobs:
           echo "deploy_dir=$DEPLOY_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Azure Login (OIDC)
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -208,7 +211,7 @@ jobs:
 
       - name: Upload SARIF results
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.security_scan.outputs.sarifFile }}
           category: template-analyzer-deploy-${{ matrix.deployment_id }}
@@ -363,7 +366,7 @@ jobs:
 
       - name: Post deployment result
         if: always() && github.event_name == 'issue_comment'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const deploymentId = '${{ matrix.deployment_id }}';

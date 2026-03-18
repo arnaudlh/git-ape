@@ -3,7 +3,7 @@ description: "Deploy Azure resources through guided workflow: gather requirement
 name: "AutoCloud"
 tools: [vscode, execute, read, agent, edit, search, web, 'azure-mcp/*', 'microsoft-docs/*', todo]
 argument-hint: "Describe what Azure resources to deploy"
-agents: ["Azure Requirements Gatherer", "Azure Template Generator", "Azure Resource Deployer", "Azure IaC Exporter", "Azure Principal Architect"]
+agents: ["Azure Requirements Gatherer", "Azure Template Generator", "Azure Resource Deployer", "Azure IaC Exporter", "Azure Principal Architect", "AutoCloud Onboarding"]
 user-invocable: true
 model: Claude Opus 4.6 (copilot)
 ---
@@ -112,6 +112,7 @@ Coordinate the deployment of Azure resources by delegating to specialized subage
 - **Azure Resource Deployer** — Execute ARM deployments, monitor progress, handle failures
 - **Azure IaC Exporter** — Import existing Azure resources into AutoCloud management
 - **Azure Principal Architect** — WAF 5-pillar architecture review and trade-off analysis
+- **AutoCloud Onboarding** — Set up repo/subscription/user access with OIDC, RBAC, and GitHub environments via the `/autocloud-onboarding` skill playbook
 
 **Skills (invoked during workflow):**
 - `/azure-naming-research` — CAF abbreviation lookup and naming validation

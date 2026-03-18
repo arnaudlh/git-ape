@@ -16,41 +16,42 @@ AutoCloud supports two onboarding modes:
 
 ## Quick Start (Automated)
 
-Run the onboarding script — it handles everything interactively:
+You can run onboarding from Copilot Chat with:
 
-```bash
-.github/scripts/onboard.sh
+```text
+@AutoCloud Onboarding onboard this repository
 ```
 
-The script will prompt you for:
+or directly invoke the skill:
+
+```text
+/autocloud-onboarding
+```
+
+Both paths execute the same onboarding playbook through Copilot Chat.
+
+The skill-driven onboarding flow will gather or use:
 1. **GitHub repository URL** — e.g. `https://github.com/your-org/your-repo`
 2. **Entra ID App Registration name** — e.g. `sp-autocloud-your-repo`
 3. **Single or multi-environment mode** — choose whether to deploy to one or multiple Azure subscriptions
 4. **Azure subscription(s)** — defaults to your current `az` subscription
 5. **RBAC role(s)** — Contributor (default) or Contributor + User Access Administrator
 
-### Non-Interactive Usage
+### Parameterized Usage
 
 **Single environment:**
 
-```bash
-GITHUB_REPO_URL=https://github.com/your-org/your-repo \
-SP_NAME=sp-autocloud-your-repo \
-SUBSCRIPTION_ID=00000000-0000-0000-0000-000000000000 \
-RBAC_ROLE=Contributor \
-.github/scripts/onboard.sh
+```text
+/autocloud-onboarding onboard https://github.com/your-org/your-repo on subscription 00000000-0000-0000-0000-000000000000 with Contributor
 ```
 
 **Multi-environment:**
 
-```bash
-GITHUB_REPO_URL=https://github.com/your-org/your-repo \
-SP_NAME=sp-autocloud-your-repo \
-AUTOCLOUD_ENVIRONMENTS="dev|11111111-1111-1111-1111-111111111111|Contributor,staging|22222222-2222-2222-2222-222222222222|Contributor,prod|33333333-3333-3333-3333-333333333333|Contributor+UserAccessAdministrator" \
-.github/scripts/onboard.sh
+```text
+/autocloud-onboarding onboard https://github.com/your-org/your-repo with dev on 11111111-1111-1111-1111-111111111111 as Contributor, staging on 22222222-2222-2222-2222-222222222222 as Contributor, prod on 33333333-3333-3333-3333-333333333333 as Contributor+UserAccessAdministrator
 ```
 
-The `AUTOCLOUD_ENVIRONMENTS` variable uses the format `name|subscription-id|rbac-role` with comma separators. Each entry creates:
+Each multi-environment entry creates:
 - A GitHub environment `azure-deploy-{name}` with environment-level secrets
 - A federated credential scoped to that environment
 - An RBAC role assignment on the specified subscription
@@ -59,7 +60,7 @@ The `AUTOCLOUD_ENVIRONMENTS` variable uses the format `name|subscription-id|rbac
 
 ## Manual Setup
 
-If you prefer to set up each component manually, follow the steps below.
+If you prefer to inspect or execute each component manually, follow the steps below.
 
 ### Prerequisites
 
@@ -105,7 +106,20 @@ OBJECT_ID=$(az ad app show --id "$CLIENT_ID" --query id -o tsv)
 
 # Your GitHub repo (org/repo format)
 REPO="your-org/your-repo"
+
+# Detect whether the GitHub org uses default or customized OIDC subjects
+USE_DEFAULT_SUBJECT=$(gh api "orgs/${REPO%%/*}/actions/oidc/customization/sub" --jq '.use_default' 2>/dev/null || echo true)
+
+if [[ "$USE_DEFAULT_SUBJECT" == "false" ]]; then
+  REPO_ID=$(gh api "repos/$REPO" --jq '.id')
+  OWNER_ID=$(gh api "repos/$REPO" --jq '.owner.id')
+  OIDC_PREFIX="repository_owner_id:${OWNER_ID}:repository_id:${REPO_ID}"
+else
+  OIDC_PREFIX="repo:$REPO"
+fi
 ```
+
+Use `$OIDC_PREFIX` for all subjects below. On orgs with a customized subject template, `repo:org/repo:...` will fail with `AADSTS700213`.
 
 #### 2a. Main Branch (merge-triggered deployments)
 
@@ -113,7 +127,7 @@ REPO="your-org/your-repo"
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-main-branch",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':ref:refs/heads/main",
+  "subject": "'"$OIDC_PREFIX"':ref:refs/heads/main",
   "description": "Main branch deployments",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -125,7 +139,7 @@ az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-pull-request",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':pull_request",
+  "subject": "'"$OIDC_PREFIX"':pull_request",
   "description": "Pull request validation",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -142,7 +156,7 @@ Create one federated credential for the `azure-deploy` environment:
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-env-deploy",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':environment:azure-deploy",
+  "subject": "'"$OIDC_PREFIX"':environment:azure-deploy",
   "description": "Deploy environment",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -160,7 +174,7 @@ Create one federated credential per environment. Each maps to a separate GitHub 
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-env-deploy-dev",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':environment:azure-deploy-dev",
+  "subject": "'"$OIDC_PREFIX"':environment:azure-deploy-dev",
   "description": "Deploy environment (dev)",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -169,7 +183,7 @@ az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-env-deploy-staging",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':environment:azure-deploy-staging",
+  "subject": "'"$OIDC_PREFIX"':environment:azure-deploy-staging",
   "description": "Deploy environment (staging)",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -178,7 +192,7 @@ az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-env-deploy-prod",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':environment:azure-deploy-prod",
+  "subject": "'"$OIDC_PREFIX"':environment:azure-deploy-prod",
   "description": "Deploy environment (prod)",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -192,7 +206,7 @@ az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
 az ad app federated-credential create --id "$OBJECT_ID" --parameters '{
   "name": "fc-env-destroy",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:'"$REPO"':environment:azure-destroy",
+  "subject": "'"$OIDC_PREFIX"':environment:azure-destroy",
   "description": "Destroy environment",
   "audiences": ["api://AzureADTokenExchange"]
 }'
@@ -208,22 +222,22 @@ az ad app federated-credential list --id "$OBJECT_ID" --query "[].{name:name, su
 ```
 Name               Subject
 -----------------  -----------------------------------------------
-fc-main-branch     repo:your-org/your-repo:ref:refs/heads/main
-fc-pull-request    repo:your-org/your-repo:pull_request
-fc-env-deploy      repo:your-org/your-repo:environment:azure-deploy
-fc-env-destroy     repo:your-org/your-repo:environment:azure-destroy
+fc-main-branch     <OIDC_PREFIX>:ref:refs/heads/main
+fc-pull-request    <OIDC_PREFIX>:pull_request
+fc-env-deploy      <OIDC_PREFIX>:environment:azure-deploy
+fc-env-destroy     <OIDC_PREFIX>:environment:azure-destroy
 ```
 
 **Multi-environment (3 envs)** — expected 6 credentials:
 ```
 Name                    Subject
 ----------------------  ---------------------------------------------------
-fc-main-branch          repo:your-org/your-repo:ref:refs/heads/main
-fc-pull-request         repo:your-org/your-repo:pull_request
-fc-env-deploy-dev       repo:your-org/your-repo:environment:azure-deploy-dev
-fc-env-deploy-staging   repo:your-org/your-repo:environment:azure-deploy-staging
-fc-env-deploy-prod      repo:your-org/your-repo:environment:azure-deploy-prod
-fc-env-destroy          repo:your-org/your-repo:environment:azure-destroy
+fc-main-branch          <OIDC_PREFIX>:ref:refs/heads/main
+fc-pull-request         <OIDC_PREFIX>:pull_request
+fc-env-deploy-dev       <OIDC_PREFIX>:environment:azure-deploy-dev
+fc-env-deploy-staging   <OIDC_PREFIX>:environment:azure-deploy-staging
+fc-env-deploy-prod      <OIDC_PREFIX>:environment:azure-deploy-prod
+fc-env-destroy          <OIDC_PREFIX>:environment:azure-destroy
 ```
 
 ### Step 3: Assign RBAC Roles

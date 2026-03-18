@@ -53,7 +53,7 @@ This repository contains agent configuration files that GitHub Copilot automatic
 
 1. Clone this repository or copy the `.github/` directory to your workspace
 2. Open VS Code in the workspace
-3. Verify agent is available: Type `@autocloud` in Copilot Chat
+3. Verify agents are available: Type `@autocloud` for deployments or `@AutoCloud Onboarding` for repo setup
 
 ### Configuration
 
@@ -423,7 +423,7 @@ Confirm to proceed?
   └─────────────────┘
 ```
 
-### Subagents (5)
+### Subagents (6)
 
 | Subagent | Role | Stage |
 |----------|------|-------|
@@ -432,8 +432,9 @@ Confirm to proceed?
 | **Resource Deployer** | Execute `az deployment sub create`, monitor, handle failures | Stage 3 |
 | **Principal Architect** | WAF 5-pillar review (Security, Reliability, Perf, Cost, Ops) | On-demand |
 | **IaC Exporter** | Reverse-engineer live Azure resources into ARM templates | On-demand |
+| **AutoCloud Onboarding** | Bootstrap repo/subscription/user access via the `/autocloud-onboarding` skill playbook | On-demand |
 
-### Skills (8)
+### Skills (9)
 
 | Skill | Purpose | Invoked During |
 |-------|---------|----------------|
@@ -445,6 +446,7 @@ Confirm to proceed?
 | `/azure-drift-detector` | Detect config drift between live Azure and stored state | Pre-deployment |
 | `/azure-integration-tester` | Post-deployment health checks, endpoint tests | Stage 4 |
 | `/azure-resource-visualizer` | Generate Mermaid diagrams from live Azure resources | Stage 4 |
+| `/autocloud-onboarding` | Guided onboarding for OIDC, RBAC, environments, and secrets using direct `az` and `gh` commands | Setup / On-demand |
 
 ### Deployment Pipeline (Stages)
 
@@ -931,13 +933,9 @@ Customize deployment standards in [.github/copilot-instructions.md](.github/copi
 
 ### Onboarding
 
-Set up OIDC, RBAC, and GitHub environments with:
+Set up OIDC, RBAC, and GitHub environments with the `@AutoCloud Onboarding` agent or the `/autocloud-onboarding` skill.
 
-```bash
-.github/scripts/onboard.sh
-```
-
-Supports both single-environment and multi-environment modes. See the [Onboarding Guide](./docs/ONBOARDING.md).
+The onboarding workflow is skill-driven and executes Azure CLI / GitHub CLI commands directly. See the [Onboarding Guide](./docs/ONBOARDING.md).
 
 ### Integration Tests
 
@@ -967,8 +965,8 @@ Customize test scripts in [.github/skills/azure-integration-tester/scripts/](.gi
 
 **OIDC login fails in GitHub Actions**
 - Verify federated credentials match your environment names exactly
-- Check the `subject` field — repository name is case-sensitive
-- Run `.github/scripts/onboard.sh` to re-verify the setup
+- Check the `subject` field and whether the GitHub org uses default or ID-based OIDC subjects
+- Re-run onboarding through `@AutoCloud Onboarding` or `/autocloud-onboarding`
 - See [Onboarding Troubleshooting](./docs/ONBOARDING.md#troubleshooting)
 
 **Integration tests fail**

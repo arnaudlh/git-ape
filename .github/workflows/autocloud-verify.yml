@@ -15,7 +15,7 @@ jobs:
     name: Verify AutoCloud configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check required secrets
         id: secrets
@@ -48,7 +48,7 @@ jobs:
       - name: Test OIDC login
         id: login
         if: steps.secrets.outputs.missing == '0'
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -140,7 +140,7 @@ jobs:
 
           if [[ "${{ steps.secrets.outputs.missing }}" != "0" ]]; then
             echo "❌ Setup incomplete — ${{ steps.secrets.outputs.missing }} secret(s) missing"
-            echo "   Run: .github/scripts/onboard.sh"
+            echo "   Run: @AutoCloud Onboarding or /autocloud-onboarding"
           else
             echo "✅ AutoCloud setup verified successfully!"
             echo ""
