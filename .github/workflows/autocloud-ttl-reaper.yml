@@ -1,0 +1,217 @@
+# AutoCloud TTL Reaper Workflow
+# Automatically destroys expired deployments based on TTL metadata.
+# Runs daily. Deployments opt-in by having "ttl" in requirements.json or state.json.
+
+name: "AutoCloud: TTL Reaper"
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # Daily at 2:00 AM UTC
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  id-token: write # OIDC token for Azure login
+  contents: write # Commit state updates
+  issues: write # Create summary issues
+
+jobs:
+  reap:
+    name: Destroy expired deployments
+    runs-on: ubuntu-latest
+    environment: azure-destroy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find expired deployments
+        id: find
+        run: |
+          NOW_EPOCH=$(date +%s)
+          EXPIRED_IDS="[]"
+          EXPIRING_SOON="[]"
+          SUMMARY=""
+
+          for STATE_FILE in .azure/deployments/*/state.json; do
+            [[ -f "$STATE_FILE" ]] || continue
+
+            DEPLOY_ID=$(basename "$(dirname "$STATE_FILE")")
+            STATUS=$(jq -r '.status // ""' "$STATE_FILE")
+            TIMESTAMP=$(jq -r '.timestamp // ""' "$STATE_FILE")
+
+            # Skip non-active deployments
+            [[ "$STATUS" != "succeeded" ]] && continue
+
+            # Check for TTL in state.json
+            TTL_HOURS=$(jq -r '.ttlHours // empty' "$STATE_FILE")
+
+            # If not in state.json, check requirements.json
+            if [[ -z "$TTL_HOURS" ]]; then
+              REQ_FILE="$(dirname "$STATE_FILE")/requirements.json"
+              if [[ -f "$REQ_FILE" ]]; then
+                TTL_HOURS=$(jq -r '.ttlHours // empty' "$REQ_FILE")
+              fi
+            fi
+
+            # No TTL set — skip
+            [[ -z "$TTL_HOURS" ]] && continue
+
+            # Calculate expiry
+            if [[ -n "$TIMESTAMP" ]]; then
+              DEPLOY_EPOCH=$(date -d "$TIMESTAMP" +%s 2>/dev/null || date -jf "%Y-%m-%dT%H:%M:%SZ" "$TIMESTAMP" +%s 2>/dev/null || echo 0)
+              EXPIRY_EPOCH=$((DEPLOY_EPOCH + TTL_HOURS * 3600))
+
+              if [[ "$NOW_EPOCH" -ge "$EXPIRY_EPOCH" ]]; then
+                EXPIRED_IDS=$(echo "$EXPIRED_IDS" | jq --arg id "$DEPLOY_ID" '. + [$id]')
+                RG=$(jq -r '.resourceGroup // "unknown"' "$STATE_FILE")
+                HOURS_OVERDUE=$(( (NOW_EPOCH - EXPIRY_EPOCH) / 3600 ))
+                SUMMARY="${SUMMARY}\n🔴 **$DEPLOY_ID** ($RG): Expired ${HOURS_OVERDUE}h ago (TTL: ${TTL_HOURS}h)"
+              elif [[ $((EXPIRY_EPOCH - NOW_EPOCH)) -lt 86400 ]]; then
+                # Expiring within 24 hours
+                HOURS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 3600 ))
+                EXPIRING_SOON=$(echo "$EXPIRING_SOON" | jq --arg id "$DEPLOY_ID" '. + [$id]')
+                SUMMARY="${SUMMARY}\n🟡 **$DEPLOY_ID**: Expiring in ${HOURS_LEFT}h (TTL: ${TTL_HOURS}h)"
+              fi
+            fi
+          done
+
+          EXPIRED_COUNT=$(echo "$EXPIRED_IDS" | jq 'length')
+          EXPIRING_COUNT=$(echo "$EXPIRING_SOON" | jq 'length')
+
+          echo "expired_ids=$EXPIRED_IDS" >> "$GITHUB_OUTPUT"
+          echo "expired_count=$EXPIRED_COUNT" >> "$GITHUB_OUTPUT"
+          echo "expiring_count=$EXPIRING_COUNT" >> "$GITHUB_OUTPUT"
+          echo "summary<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$SUMMARY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo "Found $EXPIRED_COUNT expired, $EXPIRING_COUNT expiring soon"
+
+      - name: Azure Login (OIDC)
+        if: steps.find.outputs.expired_count != '0'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Destroy expired deployments
+        if: steps.find.outputs.expired_count != '0'
+        id: destroy
+        run: |
+          EXPIRED='${{ steps.find.outputs.expired_ids }}'
+          DESTROYED=0
+          FAILED=0
+          RESULTS=""
+
+          for DEPLOY_ID in $(echo "$EXPIRED" | jq -r '.[]'); do
+            STATE_FILE=".azure/deployments/$DEPLOY_ID/state.json"
+            RG_NAME=$(jq -r '.resourceGroup // empty' "$STATE_FILE")
+
+            if [[ -z "$RG_NAME" ]]; then
+              echo "⚠️ $DEPLOY_ID: No resource group in state"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+
+            RG_EXISTS=$(az group exists --name "$RG_NAME" 2>/dev/null || echo "false")
+            if [[ "$RG_EXISTS" != "true" ]]; then
+              echo "ℹ️ $DEPLOY_ID: Resource group $RG_NAME already deleted"
+              # Update state
+              jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                '. + {status: "destroyed", destroyedAt: $ts, destroyedBy: "ttl-reaper"}' \
+                "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+              DESTROYED=$((DESTROYED + 1))
+              RESULTS="${RESULTS}\n✅ $DEPLOY_ID ($RG_NAME): Already gone"
+              continue
+            fi
+
+            echo "🗑️ Destroying expired deployment: $DEPLOY_ID (RG: $RG_NAME)"
+            if az group delete --name "$RG_NAME" --yes --no-wait 2>&1; then
+              jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                '. + {status: "destroyed", destroyedAt: $ts, destroyedBy: "ttl-reaper"}' \
+                "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+              DESTROYED=$((DESTROYED + 1))
+              RESULTS="${RESULTS}\n✅ $DEPLOY_ID ($RG_NAME): Destroy initiated"
+            else
+              FAILED=$((FAILED + 1))
+              RESULTS="${RESULTS}\n❌ $DEPLOY_ID ($RG_NAME): Destroy failed"
+            fi
+          done
+
+          echo "destroyed=$DESTROYED" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "results<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$RESULTS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Skip committing state updates
+        if: steps.find.outputs.expired_count != '0'
+        run: |
+          echo "::notice::.azure deployment state updates are intentionally not committed to the repository"
+
+      - name: Create summary issue
+        if: steps.find.outputs.expired_count != '0' || steps.find.outputs.expiring_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expired = '${{ steps.find.outputs.expired_count }}';
+            const expiring = '${{ steps.find.outputs.expiring_count }}';
+            const destroyed = '${{ steps.destroy.outputs.destroyed }}' || '0';
+            const failed = '${{ steps.destroy.outputs.failed }}' || '0';
+            const summary = `${{ steps.find.outputs.summary }}`;
+            const results = `${{ steps.destroy.outputs.results }}`;
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const body = `## 🕐 TTL Reaper Report
+
+            **Run:** ${new Date().toISOString()}
+            **Workflow:** [View logs](${runUrl})
+
+            | Metric | Count |
+            |--------|-------|
+            | Expired (destroyed) | ${destroyed} |
+            | Destroy failed | ${failed} |
+            | Expiring within 24h | ${expiring} |
+
+            ### Deployments
+
+            ${summary}
+
+            ${results ? `### Destroy Results\n\n${results}` : ''}
+
+            ---
+            *To set a TTL, add \`"ttlHours": 72\` to the deployment's \`requirements.json\` or \`state.json\`*`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🕐 TTL Reaper: ${destroyed} destroyed, ${expiring} expiring soon`,
+              body: body,
+              labels: ['ttl', 'autocloud']
+            });
+
+      - name: Notify via Slack
+        if: steps.find.outputs.expired_count != '0'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then exit 0; fi
+
+          DESTROYED="${{ steps.destroy.outputs.destroyed }}"
+          EXPIRING="${{ steps.find.outputs.expiring_count }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \"🕐 AutoCloud TTL Reaper: $DESTROYED deployment(s) destroyed, $EXPIRING expiring soon\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"🕐 *AutoCloud TTL Reaper*\n\n• Destroyed: $DESTROYED\n• Expiring soon: $EXPIRING\n\n<$RUN_URL|View details>\"
+                  }
+                }
+              ]
+            }" || echo "::warning::Slack notification failed"

@@ -1,0 +1,256 @@
+# AutoCloud Destroy Workflow
+# Triggers on:
+#   1. `/destroy <deployment-id>` comment on an issue or PR
+#   2. Manual workflow dispatch
+# Deletes the Azure resource group for a tracked deployment.
+
+name: "AutoCloud: Destroy"
+
+on:
+  issue_comment:
+    types: [created]
+
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: "Deployment ID (e.g., deploy-20260218-220000)"
+        required: true
+        type: string
+      confirm:
+        description: "Type 'destroy' to confirm"
+        required: true
+        type: string
+
+permissions:
+  id-token: write       # OIDC token for Azure login
+  contents: write        # Commit updated state files
+  issues: write          # Post result on the issue
+  pull-requests: write   # Post result on PR
+
+jobs:
+  parse-command:
+    name: Parse destroy command
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/destroy'))
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_id: ${{ steps.parse.outputs.deployment_id }}
+      should_destroy: ${{ steps.parse.outputs.should_destroy }}
+    steps:
+      - name: Parse command
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === 'workflow_dispatch') {
+              const confirm = '${{ inputs.confirm }}';
+              if (confirm !== 'destroy') {
+                core.setOutput('should_destroy', 'false');
+                core.setFailed('Confirmation must be "destroy"');
+                return;
+              }
+              core.setOutput('deployment_id', '${{ inputs.deployment_id }}');
+              core.setOutput('should_destroy', 'true');
+              return;
+            }
+
+            // Parse /destroy <deployment-id> from comment
+            const comment = context.payload.comment.body.trim();
+            const match = comment.match(/^\/destroy\s+([\w-]+)/);
+
+            if (!match) {
+              core.setOutput('should_destroy', 'false');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '❌ Usage: `/destroy <deployment-id>`\n\nExample: `/destroy deploy-20260218-220000`',
+              });
+              return;
+            }
+
+            const deploymentId = match[1];
+            core.setOutput('deployment_id', deploymentId);
+            core.setOutput('should_destroy', 'true');
+
+            // React to the comment
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes',
+            });
+
+  destroy:
+    name: "Destroy: ${{ needs.parse-command.outputs.deployment_id }}"
+    needs: parse-command
+    if: needs.parse-command.outputs.should_destroy == 'true'
+    runs-on: ubuntu-latest
+    environment: azure-destroy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load deployment state
+        id: state
+        run: |
+          DEPLOYMENT_ID="${{ needs.parse-command.outputs.deployment_id }}"
+          STATE_FILE=".azure/deployments/$DEPLOYMENT_ID/state.json"
+
+          if [[ ! -f "$STATE_FILE" ]]; then
+            echo "::error::Deployment state not found: $STATE_FILE"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          RG_NAME=$(jq -r '.resourceGroup // empty' "$STATE_FILE")
+
+          if [[ -z "$RG_NAME" ]]; then
+            echo "::error::No resource group found in state file"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "resource_group=$RG_NAME" >> "$GITHUB_OUTPUT"
+          echo "Will destroy resource group: $RG_NAME"
+
+      - name: Azure Login (OIDC)
+        if: steps.state.outputs.found == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check resource group exists
+        id: check
+        if: steps.state.outputs.found == 'true'
+        run: |
+          RG="${{ steps.state.outputs.resource_group }}"
+          EXISTS=$(az group exists --name "$RG")
+
+          if [[ "$EXISTS" == "true" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            RESOURCE_COUNT=$(az resource list --resource-group "$RG" --query "length(@)" -o tsv)
+            echo "resource_count=$RESOURCE_COUNT" >> "$GITHUB_OUTPUT"
+            echo "Resource group $RG exists with $RESOURCE_COUNT resources"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Resource group $RG does not exist (already deleted?)"
+          fi
+
+      - name: Delete resource group
+        id: destroy
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          RG="${{ steps.state.outputs.resource_group }}"
+          echo "🗑️ Deleting resource group: $RG"
+
+          az group delete --name "$RG" --yes --no-wait 2>&1 || {
+            echo "destroy_status=failed" >> "$GITHUB_OUTPUT"
+            echo "::error::Failed to delete resource group $RG"
+            exit 1
+          }
+
+          echo "destroy_status=succeeded" >> "$GITHUB_OUTPUT"
+          echo "✅ Resource group deletion initiated: $RG"
+
+      - name: Update deployment state
+        if: always() && steps.state.outputs.found == 'true'
+        run: |
+          DEPLOYMENT_ID="${{ needs.parse-command.outputs.deployment_id }}"
+          STATE_FILE=".azure/deployments/$DEPLOYMENT_ID/state.json"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          if [[ "${{ steps.check.outputs.exists }}" == "false" ]]; then
+            STATUS="already-destroyed"
+          elif [[ "${{ steps.destroy.outputs.destroy_status }}" == "succeeded" ]]; then
+            STATUS="destroyed"
+          else
+            STATUS="destroy-failed"
+          fi
+
+          # Update state file
+          jq --arg status "$STATUS" --arg ts "$TIMESTAMP" --arg actor "${{ github.actor }}" \
+            '. + {status: $status, destroyedAt: $ts, destroyedBy: $actor}' \
+            "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$STATE_FILE"
+          git diff --cached --quiet || git commit -m "autocloud: mark $DEPLOYMENT_ID as $STATUS"
+          git push || echo "::warning::Could not push state update"
+
+      - name: Post result
+        if: always() && github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentId = '${{ needs.parse-command.outputs.deployment_id }}';
+            const rg = '${{ steps.state.outputs.resource_group }}';
+            const exists = '${{ steps.check.outputs.exists }}';
+            const destroyStatus = '${{ steps.destroy.outputs.destroy_status }}';
+            const resourceCount = '${{ steps.check.outputs.resource_count }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            let comment = `## AutoCloud Destroy: \`${deploymentId}\`\n\n`;
+
+            if (exists === 'false') {
+              comment += `### ⚠️ Already Destroyed\n\n`;
+              comment += `Resource group \`${rg}\` no longer exists.\n`;
+            } else if (destroyStatus === 'succeeded') {
+              comment += `### ✅ Destroy Initiated\n\n`;
+              comment += `- **Resource Group:** \`${rg}\`\n`;
+              comment += `- **Resources Deleted:** ${resourceCount}\n`;
+              comment += `- **Workflow Run:** [View logs](${runUrl})\n\n`;
+              comment += `> Deletion is running in the background. It may take a few minutes to complete.\n`;
+            } else {
+              comment += `### ❌ Destroy Failed\n\n`;
+              comment += `- **Resource Group:** \`${rg}\`\n`;
+              comment += `- **Workflow Run:** [View logs](${runUrl})\n\n`;
+              comment += `Check the workflow logs for details.\n`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment,
+            });
+
+      - name: Notify via Slack
+        if: always()
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then exit 0; fi
+
+          DEPLOY_ID="${{ needs.parse-command.outputs.deployment_id }}"
+          RG="${{ steps.state.outputs.resource_group }}"
+          STATUS="${{ steps.destroy.outputs.destroy_status }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "$STATUS" == "succeeded" ]]; then
+            EMOJI="🗑️"
+            MSG="Resource group *$RG* ($DEPLOY_ID) destroy initiated"
+          else
+            EMOJI="❌"
+            MSG="Destroy failed for *$RG* ($DEPLOY_ID)"
+          fi
+
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \"$EMOJI $MSG\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"$EMOJI *AutoCloud Destroy: $DEPLOY_ID*\\n\\n$MSG\\n\\nTriggered by: ${{ github.actor }}\\n<$RUN_URL|View logs>\"
+                  }
+                }
+              ]
+            }" || echo "::warning::Slack notification failed"

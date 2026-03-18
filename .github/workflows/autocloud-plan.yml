@@ -1,0 +1,422 @@
+# AutoCloud Planning Workflow
+# Triggers when a PR adds/modifies deployment artifacts under .azure/deployments/
+# Validates the ARM template, runs what-if analysis, and posts the plan as a PR comment.
+
+name: "AutoCloud: Plan"
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - ".azure/deployments/**/template.json"
+      - ".azure/deployments/**/parameters.json"
+
+permissions:
+  id-token: write         # OIDC token for Azure login
+  contents: read           # Read repo contents
+  pull-requests: write     # Post plan as PR comment
+  security-events: write   # Upload SARIF results from template analyzer
+
+concurrency:
+  group: autocloud-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  detect-deployments:
+    name: Detect changed deployments
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_ids: ${{ steps.find.outputs.deployment_ids }}
+      has_deployments: ${{ steps.find.outputs.has_deployments }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find deployment directories with changes
+        id: find
+        run: |
+          # Find all deployment directories that have template.json changes in this PR
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '.azure/deployments/*/template.json' '.azure/deployments/*/parameters.json')
+
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "has_deployments=false" >> "$GITHUB_OUTPUT"
+            echo "deployment_ids=[]" >> "$GITHUB_OUTPUT"
+            echo "No deployment changes detected"
+            exit 0
+          fi
+
+          # Extract unique deployment IDs
+          DEPLOYMENT_IDS=$(echo "$CHANGED_FILES" | sed 's|.azure/deployments/\([^/]*\)/.*|\1|' | sort -u | jq -R -s -c 'split("\n") | map(select(. != ""))')
+
+          echo "has_deployments=true" >> "$GITHUB_OUTPUT"
+          echo "deployment_ids=$DEPLOYMENT_IDS" >> "$GITHUB_OUTPUT"
+          echo "Detected deployments: $DEPLOYMENT_IDS"
+
+  plan:
+    name: "Plan: ${{ matrix.deployment_id }}"
+    needs: detect-deployments
+    if: needs.detect-deployments.outputs.has_deployments == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deployment_id: ${{ fromJson(needs.detect-deployments.outputs.deployment_ids) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read deployment parameters
+        id: params
+        run: |
+          DEPLOY_DIR=".azure/deployments/${{ matrix.deployment_id }}"
+
+          if [[ ! -f "$DEPLOY_DIR/template.json" ]]; then
+            echo "::error::Template not found: $DEPLOY_DIR/template.json"
+            exit 1
+          fi
+
+          # Extract location from parameters file
+          if [[ -f "$DEPLOY_DIR/parameters.json" ]]; then
+            LOCATION=$(jq -r '.parameters.location.value // "eastus"' "$DEPLOY_DIR/parameters.json")
+          else
+            LOCATION="eastus"
+          fi
+
+          echo "location=$LOCATION" >> "$GITHUB_OUTPUT"
+          echo "deploy_dir=$DEPLOY_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate template
+        id: validate
+        run: |
+          echo "### Validating ARM template..." 
+
+          RESULT=$(az deployment sub validate \
+            --location "${{ steps.params.outputs.location }}" \
+            --template-file "${{ steps.params.outputs.deploy_dir }}/template.json" \
+            --parameters @"${{ steps.params.outputs.deploy_dir }}/parameters.json" \
+            --output json 2>&1) || true
+
+          ERROR=$(echo "$RESULT" | jq -r '.error // empty' 2>/dev/null)
+
+          if [[ -n "$ERROR" && "$ERROR" != "null" ]]; then
+            echo "validation_status=failed" >> "$GITHUB_OUTPUT"
+            echo "validation_error<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$RESULT" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            echo "::error::Template validation failed"
+          else
+            echo "validation_status=passed" >> "$GITHUB_OUTPUT"
+            echo "Template validation passed"
+          fi
+
+      - name: Enforce required tags
+        id: tags
+        run: |
+          TEMPLATE="${{ steps.params.outputs.deploy_dir }}/template.json"
+          REQUIRED_TAGS=("Environment" "Project" "ManagedBy" "CreatedDate")
+          MISSING_TAGS=""
+          TAG_DETAILS=""
+
+          # Check top-level variables.tags block
+          HAS_TAG_VAR=$(jq 'has("variables") and (.variables | has("tags"))' "$TEMPLATE")
+
+          # Check all resource groups and nested deployment resources for tags
+          RESOURCES_WITHOUT_TAGS=$(jq -r '
+            [.resources[] |
+              select(.type == "Microsoft.Resources/resourceGroups") |
+              select(.tags == null or .tags == "") |
+              .name
+            ] | join(", ")
+          ' "$TEMPLATE")
+
+          if [[ -n "$RESOURCES_WITHOUT_TAGS" ]]; then
+            MISSING_TAGS="Resource groups missing tags: $RESOURCES_WITHOUT_TAGS"
+          fi
+
+          if [[ "$HAS_TAG_VAR" == "true" ]]; then
+            for TAG in "${REQUIRED_TAGS[@]}"; do
+              TAG_EXISTS=$(jq --arg t "$TAG" '.variables.tags | has($t)' "$TEMPLATE")
+              if [[ "$TAG_EXISTS" != "true" ]]; then
+                MISSING_TAGS="${MISSING_TAGS}Missing required tag: $TAG\n"
+              fi
+            done
+          fi
+
+          if [[ -n "$MISSING_TAGS" ]]; then
+            echo "tag_status=failed" >> "$GITHUB_OUTPUT"
+            echo "tag_details<<EOF" >> "$GITHUB_OUTPUT"
+            echo -e "$MISSING_TAGS" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            echo "::warning::Tag enforcement: missing required tags"
+          else
+            echo "tag_status=passed" >> "$GITHUB_OUTPUT"
+            echo "All required tags present: ${REQUIRED_TAGS[*]}"
+          fi
+
+      - name: Estimate deployment cost
+        id: cost
+        if: steps.validate.outputs.validation_status == 'passed'
+        run: |
+          TEMPLATE="${{ steps.params.outputs.deploy_dir }}/template.json"
+          PARAMS="${{ steps.params.outputs.deploy_dir }}/parameters.json"
+          REGION="${{ steps.params.outputs.location }}"
+
+          # Extract resource types and SKUs from the template
+          COST_TABLE="| Resource Type | SKU | Est. Monthly |\n|---|---|---|\n"
+          TOTAL=0
+          COST_NOTES=""
+
+          # Check for existing cost estimate file
+          COST_FILE="${{ steps.params.outputs.deploy_dir }}/cost-estimate.json"
+          if [[ -f "$COST_FILE" ]]; then
+            TOTAL=$(jq -r '.monthlyTotal // 0' "$COST_FILE")
+            COST_TABLE=$(jq -r '.resources[] | "| \(.type) | \(.sku // "-") | $\(.monthlyEstimate) |"' "$COST_FILE" | sort)
+            COST_TABLE="| Resource Type | SKU | Est. Monthly |\n|---|---|---|\n${COST_TABLE}"
+            echo "cost_status=found" >> "$GITHUB_OUTPUT"
+          else
+            # Query Azure Retail Prices API for key resource types
+            VM_SKUS=$(jq -r '
+              [.. | objects | select(.type? == "Microsoft.Compute/virtualMachines") | .properties.hardwareProfile.vmSize // empty] | unique | .[]
+            ' "$TEMPLATE" 2>/dev/null || true)
+
+            ASP_SKUS=$(jq -r '
+              [.. | objects | select(.type? == "Microsoft.Web/serverfarms") | .sku.name // empty] | unique | .[]
+            ' "$TEMPLATE" 2>/dev/null || true)
+
+            for SKU in $VM_SKUS; do
+              PRICE=$(curl -sf "https://prices.azure.com/api/retail/prices?\$filter=serviceName%20eq%20%27Virtual%20Machines%27%20and%20armRegionName%20eq%20%27${REGION}%27%20and%20armSkuName%20eq%20%27${SKU}%27%20and%20priceType%20eq%20%27Consumption%27" \
+                | jq '[.Items[] | select(.isPrimaryMeterRegion == true and (.productName | test("Windows") | not))] | .[0].retailPrice // 0' 2>/dev/null || echo 0)
+              MONTHLY=$(echo "$PRICE * 730" | bc -l 2>/dev/null | xargs printf "%.2f" 2>/dev/null || echo "0.00")
+              COST_TABLE="${COST_TABLE}| Virtual Machine | ${SKU} | \$${MONTHLY} |\n"
+              TOTAL=$(echo "$TOTAL + $MONTHLY" | bc -l 2>/dev/null || echo "$TOTAL")
+            done
+
+            for SKU in $ASP_SKUS; do
+              PRICE=$(curl -sf "https://prices.azure.com/api/retail/prices?\$filter=serviceName%20eq%20%27Azure%20App%20Service%27%20and%20armRegionName%20eq%20%27${REGION}%27%20and%20armSkuName%20eq%20%27${SKU}%27%20and%20priceType%20eq%20%27Consumption%27" \
+                | jq '[.Items[] | select(.isPrimaryMeterRegion == true)] | .[0].retailPrice // 0' 2>/dev/null || echo 0)
+              MONTHLY=$(echo "$PRICE * 730" | bc -l 2>/dev/null | xargs printf "%.2f" 2>/dev/null || echo "0.00")
+              COST_TABLE="${COST_TABLE}| App Service Plan | ${SKU} | \$${MONTHLY} |\n"
+              TOTAL=$(echo "$TOTAL + $MONTHLY" | bc -l 2>/dev/null || echo "$TOTAL")
+            done
+
+            # Check for free-tier resources
+            HAS_FUNCTIONS=$(jq '[.. | objects | select(.type? == "Microsoft.Web/sites" and (.kind? // "" | test("functionapp")))] | length' "$TEMPLATE" 2>/dev/null || echo 0)
+            if [[ "$HAS_FUNCTIONS" -gt 0 ]]; then
+              COST_TABLE="${COST_TABLE}| Function App (Consumption) | - | \$0.00* |\n"
+              COST_NOTES="*Function Apps on Consumption plan: first 1M executions + 400K GB-s free/month"
+            fi
+
+            echo "cost_status=estimated" >> "$GITHUB_OUTPUT"
+          fi
+
+          TOTAL_FMT=$(printf "%.2f" "$TOTAL" 2>/dev/null || echo "0.00")
+          echo "cost_total=$TOTAL_FMT" >> "$GITHUB_OUTPUT"
+          echo "cost_table<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$COST_TABLE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "cost_notes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$COST_NOTES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Run Microsoft Defender for DevOps template analyzer
+        id: security_scan
+        if: steps.validate.outputs.validation_status == 'passed'
+        uses: microsoft/security-devops-action@v1
+        with:
+          tools: templateanalyzer
+        env:
+          GDN_TEMPLATEANALYZER_INPUT: ${{ steps.params.outputs.deploy_dir }}/template.json
+
+      - name: Upload SARIF results
+        if: steps.validate.outputs.validation_status == 'passed' && always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.security_scan.outputs.sarifFile }}
+          category: template-analyzer-${{ matrix.deployment_id }}
+
+      - name: Parse security scan results
+        id: scan_results
+        if: steps.validate.outputs.validation_status == 'passed' && always()
+        run: |
+          SARIF_FILE="${{ steps.security_scan.outputs.sarifFile }}"
+          if [[ -f "$SARIF_FILE" ]]; then
+            ERRORS=$(jq '[.runs[].results[] | select(.level == "error")] | length' "$SARIF_FILE" 2>/dev/null || echo 0)
+            WARNINGS=$(jq '[.runs[].results[] | select(.level == "warning")] | length' "$SARIF_FILE" 2>/dev/null || echo 0)
+            NOTES=$(jq '[.runs[].results[] | select(.level == "note" or .level == "none")] | length' "$SARIF_FILE" 2>/dev/null || echo 0)
+
+            echo "scan_errors=$ERRORS" >> "$GITHUB_OUTPUT"
+            echo "scan_warnings=$WARNINGS" >> "$GITHUB_OUTPUT"
+            echo "scan_notes=$NOTES" >> "$GITHUB_OUTPUT"
+
+            if [[ "$ERRORS" -gt 0 ]]; then
+              echo "scan_status=failed" >> "$GITHUB_OUTPUT"
+              echo "::error::Template analyzer found $ERRORS error(s)"
+            else
+              echo "scan_status=passed" >> "$GITHUB_OUTPUT"
+            fi
+
+            # Extract finding details for PR comment
+            FINDINGS=$(jq -r '.runs[].results[] | "- **\(.level | ascii_upcase):** \(.message.text) (\(.ruleId))"' "$SARIF_FILE" 2>/dev/null || echo "")
+            echo "scan_findings<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$FINDINGS" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "scan_status=skipped" >> "$GITHUB_OUTPUT"
+            echo "scan_errors=0" >> "$GITHUB_OUTPUT"
+            echo "scan_warnings=0" >> "$GITHUB_OUTPUT"
+            echo "scan_notes=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run what-if analysis
+        id: whatif
+        if: steps.validate.outputs.validation_status == 'passed'
+        run: |
+          echo "### Running what-if analysis..."
+
+          WHATIF_OUTPUT=$(az deployment sub what-if \
+            --location "${{ steps.params.outputs.location }}" \
+            --template-file "${{ steps.params.outputs.deploy_dir }}/template.json" \
+            --parameters @"${{ steps.params.outputs.deploy_dir }}/parameters.json" \
+            --no-prompt 2>&1) || true
+
+          echo "whatif_result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$WHATIF_OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Read architecture diagram
+        id: architecture
+        run: |
+          ARCH_FILE="${{ steps.params.outputs.deploy_dir }}/architecture.md"
+          if [[ -f "$ARCH_FILE" ]]; then
+            echo "has_architecture=true" >> "$GITHUB_OUTPUT"
+            # Store content for PR comment
+            {
+              echo "architecture_content<<EOF"
+              cat "$ARCH_FILE"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "has_architecture=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post plan as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentId = '${{ matrix.deployment_id }}';
+            const validationStatus = '${{ steps.validate.outputs.validation_status }}';
+            const whatifResult = `${{ steps.whatif.outputs.whatif_result }}`;
+            const hasArchitecture = '${{ steps.architecture.outputs.has_architecture }}' === 'true';
+            const architectureContent = `${{ steps.architecture.outputs.architecture_content }}`;
+            const validationError = `${{ steps.validate.outputs.validation_error }}`;
+            const scanStatus = '${{ steps.scan_results.outputs.scan_status }}';
+            const scanErrors = '${{ steps.scan_results.outputs.scan_errors }}';
+            const scanWarnings = '${{ steps.scan_results.outputs.scan_warnings }}';
+            const scanNotes = '${{ steps.scan_results.outputs.scan_notes }}';
+            const scanFindings = `${{ steps.scan_results.outputs.scan_findings }}`;
+            const tagStatus = '${{ steps.tags.outputs.tag_status }}';
+            const tagDetails = `${{ steps.tags.outputs.tag_details }}`;
+            const costTotal = '${{ steps.cost.outputs.cost_total }}';
+            const costTable = `${{ steps.cost.outputs.cost_table }}`;
+            const costNotes = `${{ steps.cost.outputs.cost_notes }}`;
+
+            let comment = `## AutoCloud Plan: \`${deploymentId}\`\n\n`;
+
+            // Validation
+            if (validationStatus === 'passed') {
+              comment += `### ✅ Template Validation: Passed\n\n`;
+            } else {
+              comment += `### ❌ Template Validation: Failed\n\n`;
+              comment += `\`\`\`\n${validationError}\n\`\`\`\n\n`;
+              comment += `> Fix the template and push again to re-run validation.\n\n`;
+            }
+
+            // Security Scan
+            if (validationStatus === 'passed') {
+              if (scanStatus === 'passed') {
+                comment += `### ✅ Security Scan: Passed`;
+                if (parseInt(scanWarnings) > 0 || parseInt(scanNotes) > 0) {
+                  comment += ` (${scanWarnings} warning(s), ${scanNotes} note(s))`;
+                }
+                comment += `\n\n`;
+              } else if (scanStatus === 'failed') {
+                comment += `### ❌ Security Scan: Failed (${scanErrors} error(s), ${scanWarnings} warning(s))\n\n`;
+              }
+              if (scanFindings) {
+                comment += `<details>\n<summary>Security findings</summary>\n\n${scanFindings}\n\n</details>\n\n`;
+              }
+            }
+
+            // Tag Enforcement
+            if (tagStatus === 'passed') {
+              comment += `### ✅ Tag Enforcement: Passed\n\n`;
+            } else if (tagStatus === 'failed') {
+              comment += `### ⚠️ Tag Enforcement: Issues Found\n\n`;
+              comment += `${tagDetails}\n\n`;
+            }
+
+            // Cost Estimate
+            if (costTotal) {
+              comment += `### 💰 Estimated Monthly Cost: $${costTotal}\n\n`;
+              comment += `${costTable}\n`;
+              if (costNotes) {
+                comment += `\n> ${costNotes}\n\n`;
+              }
+              comment += `*Retail pay-as-you-go pricing from Azure Retail Prices API*\n\n`;
+            }
+
+            // Architecture
+            if (hasArchitecture) {
+              comment += `### Architecture\n\n${architectureContent}\n\n`;
+            }
+
+            // What-if
+            if (validationStatus === 'passed' && whatifResult) {
+              comment += `### What-If Analysis\n\n`;
+              comment += `\`\`\`\n${whatifResult}\n\`\`\`\n\n`;
+            }
+
+            // Instructions
+            if (validationStatus === 'passed') {
+              comment += `---\n`;
+              comment += `### Next Steps\n\n`;
+              comment += `1. Review the plan above\n`;
+              comment += `2. Approve and merge this PR to trigger deployment\n`;
+              comment += `3. Or comment \`/deploy\` to deploy from this branch before merging\n`;
+            }
+
+            // Find and update existing comment or create new
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const marker = `<!-- autocloud-plan:${deploymentId} -->`;
+            comment = marker + '\n' + comment;
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: comment,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment,
+              });
+            }

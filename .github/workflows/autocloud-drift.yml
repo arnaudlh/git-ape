@@ -1,0 +1,248 @@
+# AutoCloud Drift Detection Workflow
+# Scheduled check for configuration drift between Azure resources and deployment state.
+# Runs every 6 hours, or manually. Creates a GitHub issue if critical drift is found.
+
+name: "AutoCloud: Drift Detection"
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # Every 6 hours
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: "Specific deployment ID to check (leave empty for all)"
+        required: false
+        type: string
+
+permissions:
+  id-token: write # OIDC token for Azure login
+  contents: write # Commit drift reports
+  issues: write # Create issues for critical drift
+
+jobs:
+  detect-drift:
+    name: Detect configuration drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Find active deployments
+        id: find
+        run: |
+          INPUT_ID="${{ inputs.deployment_id }}"
+
+          if [[ -n "$INPUT_ID" ]]; then
+            # Check specific deployment
+            STATE_FILE=".azure/deployments/$INPUT_ID/state.json"
+            if [[ ! -f "$STATE_FILE" ]]; then
+              echo "::error::Deployment not found: $INPUT_ID"
+              exit 1
+            fi
+            echo "deployment_ids=[\"$INPUT_ID\"]" >> "$GITHUB_OUTPUT"
+            echo "count=1" >> "$GITHUB_OUTPUT"
+          else
+            # Find all active deployments (status = succeeded, not destroyed)
+            ACTIVE=$(find .azure/deployments -name "state.json" -exec sh -c '
+              STATUS=$(jq -r ".status // empty" "$1")
+              if [ "$STATUS" = "succeeded" ]; then
+                basename "$(dirname "$1")"
+              fi
+            ' _ {} \; | sort | jq -R -s -c 'split("\n") | map(select(. != ""))')
+
+            COUNT=$(echo "$ACTIVE" | jq 'length')
+            echo "deployment_ids=$ACTIVE" >> "$GITHUB_OUTPUT"
+            echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+            echo "Found $COUNT active deployment(s) to check"
+          fi
+
+      - name: Run drift detection
+        id: drift
+        run: |
+          DEPLOYMENTS='${{ steps.find.outputs.deployment_ids }}'
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          DATE_SLUG=$(date -u +%Y-%m-%d)
+
+          CRITICAL_COUNT=0
+          WARNING_COUNT=0
+          CLEAN_COUNT=0
+          DRIFT_SUMMARY=""
+          CRITICAL_DETAILS=""
+
+          for DEPLOY_ID in $(echo "$DEPLOYMENTS" | jq -r '.[]'); do
+            STATE_FILE=".azure/deployments/$DEPLOY_ID/state.json"
+            TEMPLATE_FILE=".azure/deployments/$DEPLOY_ID/template.json"
+
+            RG_NAME=$(jq -r '.resourceGroup // empty' "$STATE_FILE")
+            if [[ -z "$RG_NAME" ]]; then
+              echo "⚠️ $DEPLOY_ID: No resource group in state, skipping"
+              continue
+            fi
+
+            # Check if resource group still exists
+            RG_EXISTS=$(az group exists --name "$RG_NAME" 2>/dev/null || echo "false")
+            if [[ "$RG_EXISTS" != "true" ]]; then
+              CRITICAL_COUNT=$((CRITICAL_COUNT + 1))
+              DRIFT_SUMMARY="${DRIFT_SUMMARY}\n🔴 **$DEPLOY_ID**: Resource group \`$RG_NAME\` no longer exists"
+              CRITICAL_DETAILS="${CRITICAL_DETAILS}\n### $DEPLOY_ID\nResource group \`$RG_NAME\` has been deleted outside of AutoCloud.\n"
+              continue
+            fi
+
+            # Get current Azure state
+            CURRENT_RESOURCES=$(az resource list --resource-group "$RG_NAME" \
+              --query "[].{name:name, type:type, provisioningState:provisioningState, tags:tags}" \
+              --output json 2>/dev/null || echo "[]")
+
+            CURRENT_COUNT=$(echo "$CURRENT_RESOURCES" | jq 'length')
+
+            # Check for resources not in Succeeded state
+            UNHEALTHY=$(echo "$CURRENT_RESOURCES" | jq '[.[] | select(.provisioningState != "Succeeded")] | length')
+            if [[ "$UNHEALTHY" -gt 0 ]]; then
+              WARNING_COUNT=$((WARNING_COUNT + 1))
+              DRIFT_SUMMARY="${DRIFT_SUMMARY}\n🟡 **$DEPLOY_ID**: $UNHEALTHY resource(s) not in Succeeded state"
+              continue
+            fi
+
+            # Check for tag drift on resources
+            TAG_DRIFT=false
+            MISSING_TAGS=$(echo "$CURRENT_RESOURCES" | jq -r '
+              [.[] |
+                select(.tags != null) |
+                select(
+                  (.tags.ManagedBy == null) or
+                  (.tags.Environment == null) or
+                  (.tags.Project == null)
+                ) |
+                .name
+              ] | join(", ")
+            ')
+
+            if [[ -n "$MISSING_TAGS" ]]; then
+              TAG_DRIFT=true
+              WARNING_COUNT=$((WARNING_COUNT + 1))
+              DRIFT_SUMMARY="${DRIFT_SUMMARY}\n🟡 **$DEPLOY_ID**: Tag drift on: $MISSING_TAGS"
+              continue
+            fi
+
+            # Check security-critical properties on web apps and function apps
+            WEB_APPS=$(echo "$CURRENT_RESOURCES" | jq -r '.[] | select(.type == "Microsoft.Web/sites") | .name')
+            SEC_DRIFT=false
+            for APP_NAME in $WEB_APPS; do
+              HTTPS_ONLY=$(az webapp show -n "$APP_NAME" -g "$RG_NAME" --query "httpsOnly" -o tsv 2>/dev/null || echo "unknown")
+              FTPS_STATE=$(az webapp show -n "$APP_NAME" -g "$RG_NAME" --query "siteConfig.ftpsState" -o tsv 2>/dev/null || echo "unknown")
+              MIN_TLS=$(az webapp show -n "$APP_NAME" -g "$RG_NAME" --query "siteConfig.minTlsVersion" -o tsv 2>/dev/null || echo "unknown")
+
+              if [[ "$HTTPS_ONLY" == "false" ]]; then
+                SEC_DRIFT=true
+                CRITICAL_COUNT=$((CRITICAL_COUNT + 1))
+                DRIFT_SUMMARY="${DRIFT_SUMMARY}\n🔴 **$DEPLOY_ID**: HTTPS enforcement disabled on \`$APP_NAME\`"
+                CRITICAL_DETAILS="${CRITICAL_DETAILS}\n### $DEPLOY_ID — $APP_NAME\n- \`httpsOnly\`: expected \`true\`, found \`false\`\n"
+              fi
+              if [[ "$FTPS_STATE" != "Disabled" && "$FTPS_STATE" != "FtpsOnly" && "$FTPS_STATE" != "unknown" ]]; then
+                WARNING_COUNT=$((WARNING_COUNT + 1))
+                DRIFT_SUMMARY="${DRIFT_SUMMARY}\n🟡 **$DEPLOY_ID**: FTP enabled on \`$APP_NAME\` (state: $FTPS_STATE)"
+              fi
+            done
+
+            if [[ "$SEC_DRIFT" == "false" && "$TAG_DRIFT" == "false" ]]; then
+              CLEAN_COUNT=$((CLEAN_COUNT + 1))
+            fi
+          done
+
+          echo "critical_count=$CRITICAL_COUNT" >> "$GITHUB_OUTPUT"
+          echo "warning_count=$WARNING_COUNT" >> "$GITHUB_OUTPUT"
+          echo "clean_count=$CLEAN_COUNT" >> "$GITHUB_OUTPUT"
+          echo "drift_summary<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$DRIFT_SUMMARY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "critical_details<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$CRITICAL_DETAILS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo "## Drift Detection Summary"
+          echo "✅ Clean: $CLEAN_COUNT | 🟡 Warning: $WARNING_COUNT | 🔴 Critical: $CRITICAL_COUNT"
+
+      - name: Create issue for critical drift
+        if: steps.drift.outputs.critical_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const critical = '${{ steps.drift.outputs.critical_count }}';
+            const warning = '${{ steps.drift.outputs.warning_count }}';
+            const clean = '${{ steps.drift.outputs.clean_count }}';
+            const summary = `${{ steps.drift.outputs.drift_summary }}`;
+            const details = `${{ steps.drift.outputs.critical_details }}`;
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            const body = `## 🔴 Critical Configuration Drift Detected
+
+            **Detected:** ${new Date().toISOString()}
+            **Workflow Run:** [View logs](${runUrl})
+
+            ### Summary
+
+            | Status | Count |
+            |--------|-------|
+            | ✅ Clean | ${clean} |
+            | 🟡 Warning | ${warning} |
+            | 🔴 Critical | ${critical} |
+
+            ### Findings
+
+            ${summary}
+
+            ### Critical Details
+
+            ${details}
+
+            ### Remediation
+
+            1. Review the drift details above
+            2. Use \`@autocloud\` to check drift: \`check drift on <deployment-id>\`
+            3. Choose: **Accept** (update IaC), **Revert** (redeploy), or **Ignore** (mark as known)
+
+            ---
+            *Automated drift detection by AutoCloud*`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔴 Critical drift detected — ${critical} resource(s)`,
+              body: body,
+              labels: ['drift', 'security', 'autocloud']
+            });
+
+      - name: Notify via Slack (optional)
+        if: steps.drift.outputs.critical_count != '0'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "No SLACK_WEBHOOK_URL configured, skipping"
+            exit 0
+          fi
+          CRITICAL="${{ steps.drift.outputs.critical_count }}"
+          WARNING="${{ steps.drift.outputs.warning_count }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \"🔴 *AutoCloud Drift Alert*: $CRITICAL critical drift(s), $WARNING warning(s) detected.\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"🔴 *AutoCloud: Critical Configuration Drift*\n\n• Critical: $CRITICAL\n• Warning: $WARNING\n\n<$RUN_URL|View details>\"
+                  }
+                }
+              ]
+            }" || echo "::warning::Slack notification failed"
