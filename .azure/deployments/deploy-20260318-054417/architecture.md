@@ -11,7 +11,7 @@
 graph TB
     subgraph "Subscription"
         subgraph "rg-cheapvm-dev-francecentral"
-            NSG["🔒 nsg-cheapvm-dev-francecentral<br/>Network Security Group<br/>SSH (port 22) restricted"]
+            NSG["🔒 nsg-cheapvm-dev-francecentral<br/>Network Security Group<br/>SSH (port 22) — source via allowedSshSource"]
             
             subgraph "vnet-cheapvm-dev-francecentral [10.0.0.0/24]"
                 SUBNET["📡 snet-default<br/>10.0.0.0/24"]
@@ -23,7 +23,7 @@ graph TB
         end
     end
 
-    Internet["☁️ Internet"] -->|"SSH :22"| PIP
+    Internet["☁️ Internet"] -->|"SSH :22 (1.2.3.4/32 only)"| PIP
     PIP --> NIC
     NIC --> SUBNET
     SUBNET -.->|"Associated"| NSG
@@ -87,6 +87,6 @@ ssh azureuser@<public-ip-address>
 
 ## Pre-Deployment Checklist
 
-- [ ] Replace `sshPublicKey` in `parameters.json` with your actual SSH public key
-- [ ] Restrict `allowedSshSource` in `parameters.json` to your IP address (e.g., `"203.0.113.50/32"`)
+- [ ] Replace `sshPublicKey` in `parameters.json` with your actual SSH public key (`ssh-rsa AAAA...`)
+- [x] `allowedSshSource` set to `1.2.3.4/32`
 - [ ] Review and approve the PR to trigger deployment

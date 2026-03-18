@@ -6,7 +6,7 @@
 
 ## Security Gate: 🟢 PASSED (with advisory findings)
 
-All 🔴 Critical and 🟠 High security checks pass. The deployment may proceed.
+All 🔴 Critical checks pass. One 🟠 High advisory finding exists (SSH source restriction is parameterized — see NSG check #2).
 Advisory findings are listed below for awareness.
 
 ---
@@ -30,14 +30,14 @@ Advisory findings are listed below for awareness.
 |---|-------|----------|--------|----------|
 | 1 | NSG associated with subnet | 🔴 Critical | ✅ Applied | VNet subnet `snet-default` references NSG via `properties.subnets[0].properties.networkSecurityGroup.id` |
 | 2 | SSH restricted to specific source | 🟠 High | ⚠️ Parameterized | `sourceAddressPrefix` is set to `[parameters('allowedSshSource')]`. Default in parameters.json is `"*"` (any source). **User must restrict before production use.** |
-| 3 | No unrestricted inbound rules | 🟠 High | ✅ Applied | Only port 22 (SSH) is allowed inbound. All other inbound traffic is denied by default NSG rules. |
+| 3 | No unrestricted inbound rules | 🟠 High | ⚠️ Parameterized | Port 22 (SSH) IS open inbound. Whether it is restricted depends on the `allowedSshSource` parameter value at deploy time. With `allowedSshSource` set to a specific CIDR (e.g., `1.2.3.4/32`), only that source is permitted. If set to `"*"`, SSH is world-accessible. |
 | 4 | Outbound traffic | 🟢 Low | ℹ️ Info | Default NSG rules allow outbound. No custom outbound restrictions applied. |
 
 ### 3. Public IP Address (`pip-cheapvm-dev-francecentral`)
 
 | # | Check | Severity | Status | Evidence |
 |---|-------|----------|--------|----------|
-| 1 | Standard SKU | 🟡 Medium | ✅ Applied | `sku.name: "Standard"`. Standard SKU is zone-resilient and secure by default (denies inbound until NSG allows). |
+| 1 | Standard SKU | 🟡 Medium | ✅ Applied | `sku.name: "Standard"`. Standard SKU is closed by default (denies all inbound until NSG allows). Note: zone redundancy is NOT configured — no `zones` property in the template. |
 | 2 | Static allocation | 🟢 Low | ✅ Applied | `properties.publicIPAllocationMethod: "Static"` |
 | 3 | Internet exposure | 🟡 Medium | ℹ️ Info | VM IS internet-facing via this public IP. SSH access is controlled by NSG rules. |
 
@@ -62,12 +62,13 @@ Advisory findings are listed below for awareness.
 | Severity | Total | ✅ Applied | 🔄 Default | ⚠️ Advisory | ❌ Failed |
 |----------|-------|-----------|------------|-------------|----------|
 | 🔴 Critical | 4 | 4 | 0 | 0 | 0 |
-| 🟠 High | 3 | 2 | 0 | 1 (parameterized) | 0 |
+| 🟠 High | 3 | 1 | 0 | 2 (SSH source parameterized) | 0 |
 | 🟡 Medium | 3 | 1 | 1 | 1 | 0 |
 | 🟢 Low | 4 | 3 | 0 | 1 | 0 |
 
 ## Recommendations
 
-1. **Before deploying:** Update `allowedSshSource` parameter from `"*"` to your specific IP/CIDR (e.g., `"203.0.113.50/32"`)
-2. **Optional:** Enable boot diagnostics for VM troubleshooting
-3. **Optional:** Consider Azure Disk Encryption for enhanced data-at-rest protection beyond platform SSE
+1. ✅ `allowedSshSource` is set to `1.2.3.4/32` — SSH is restricted to that IP
+2. **Before deploying:** Replace `sshPublicKey` placeholder with your actual SSH RSA public key (`ssh-rsa AAAA...`)
+3. **Optional:** Enable boot diagnostics for VM troubleshooting
+4. **Optional:** Consider Azure Disk Encryption for enhanced data-at-rest protection beyond platform SSE
