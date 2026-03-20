@@ -49,6 +49,32 @@ AutoCloud orchestrates Azure resource deployments through a systematic 4-stage p
 
 ### Installation
 
+#### Option 1: Install from Copilot CLI Marketplace (recommended)
+
+AutoCloud is published as a [Copilot CLI plugin marketplace](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace). Add the marketplace and install the plugin with:
+
+```bash
+# Add the AutoCloud marketplace
+copilot plugin marketplace add Azure/autocloud
+
+# Install the autocloud plugin
+copilot plugin add autocloud --from Azure/autocloud
+```
+
+To update later:
+
+```bash
+copilot plugin update autocloud
+```
+
+To uninstall:
+
+```bash
+copilot plugin remove autocloud
+```
+
+#### Option 2: Manual installation
+
 This repository contains agent configuration files that GitHub Copilot automatically discovers.
 
 1. Clone this repository or copy the `.github/` directory to your workspace
@@ -71,6 +97,40 @@ Configure Azure MCP in your VS Code settings:
 ```
 
 See [Azure MCP Setup Guide](./docs/AZURE_MCP_SETUP.md) for detailed configuration.
+
+### Plugin & Marketplace Structure
+
+AutoCloud is packaged as a **Copilot CLI plugin** with a marketplace listing. The relevant files are:
+
+```
+.github/
+├── plugin.json              # Plugin manifest — declares agents/ and skills/ directories
+├── plugin/
+│   └── marketplace.json     # Marketplace listing — name, version, description, plugins array
+├── agents/                  # Agent definitions (.agent.md files)
+│   ├── autocloud.agent.md
+│   ├── autocloudonboarding.agent.md
+│   ├── azure-iac-exporter.agent.md
+│   ├── azure-principal-architect.agent.md
+│   ├── azure-requirements-gatherer.agent.md
+│   ├── azure-resource-deployer.agent.md
+│   └── azure-template-generator.agent.md
+└── skills/                  # Skill definitions (SKILL.md + scripts)
+    ├── autocloud-onboarding/
+    ├── azure-cost-estimator/
+    ├── azure-deployment-preflight/
+    ├── azure-drift-detector/
+    ├── azure-integration-tester/
+    ├── azure-naming-research/
+    ├── azure-resource-visualizer/
+    ├── azure-role-selector/
+    └── azure-security-analyzer/
+```
+
+- **`marketplace.json`** ([.github/plugin/marketplace.json](.github/plugin/marketplace.json)) — the marketplace registry file. Copilot CLI recognizes any repository with this file at `.github/plugin/marketplace.json` as a plugin marketplace. The `source` field in each plugin entry points to the directory containing the plugin manifest, relative to the repo root.
+- **`plugin.json`** ([.github/plugin.json](.github/plugin.json)) — the plugin manifest. Declares the `agents/` and `skills/` directories as relative paths. These paths must stay **within** the plugin directory (no `../` prefixes — Copilot CLI blocks path traversal).
+
+For more details, see [Creating a plugin marketplace for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace) and [Finding and installing plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing).
 
 ## Usage
 
