@@ -1,0 +1,26 @@
+{
+  "name": "autocloud",
+  "description": "Intelligent Azure deployment agent system for GitHub Copilot. Provides guided, safe, and validated Azure resource deployments using ARM templates, with built-in security analysis, cost estimation, drift detection, and CI/CD pipeline integration.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Microsoft",
+    "url": "https://github.com/Azure/autocloud"
+  },
+  "homepage": "https://github.com/Azure/autocloud",
+  "repository": "https://github.com/Azure/autocloud",
+  "license": "MIT",
+  "keywords": [
+    "azure",
+    "cloud",
+    "infrastructure",
+    "arm-templates",
+    "deployment",
+    "devops",
+    "iac",
+    "security",
+    "cost-estimation",
+    "github-actions"
+  ],
+  "agents": "../agents/",
+  "skills": "../skills/"
+}
