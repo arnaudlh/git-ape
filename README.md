@@ -58,7 +58,7 @@ AutoCloud is published as a [Copilot CLI plugin marketplace](https://docs.github
 copilot plugin marketplace add Azure/autocloud
 
 # Install the autocloud plugin
-copilot plugin add autocloud --from Azure/autocloud
+copilot plugin install Azure/autocloud
 ```
 
 To update later:
@@ -103,12 +103,10 @@ See [Azure MCP Setup Guide](./docs/AZURE_MCP_SETUP.md) for detailed configuratio
 AutoCloud is packaged as a **Copilot CLI plugin** with a marketplace listing. The relevant files are:
 
 ```
+plugin.json                  # Plugin manifest — declares .github/agents/ and .github/skills/
 .github/
 ├── plugin/
-│   ├── plugin.json          # Plugin manifest — declares agents/ and skills/ directories
-│   ├── marketplace.json     # Marketplace listing — name, version, description, plugins array
-│   ├── agents -> ../agents  # Symlink to .github/agents/
-│   └── skills -> ../skills  # Symlink to .github/skills/
+│   └── marketplace.json     # Marketplace listing — name, version, plugins array
 ├── agents/                  # Agent definitions (.agent.md files)
 │   ├── autocloud.agent.md
 │   ├── autocloudonboarding.agent.md
@@ -129,8 +127,8 @@ AutoCloud is packaged as a **Copilot CLI plugin** with a marketplace listing. Th
     └── azure-security-analyzer/
 ```
 
-- **`marketplace.json`** ([.github/plugin/marketplace.json](.github/plugin/marketplace.json)) — the marketplace registry file. Copilot CLI recognizes any repository with this file at `.github/plugin/marketplace.json` as a plugin marketplace. The `source` field in each plugin entry points to the directory containing the plugin manifest, relative to the repo root.
-- **`plugin.json`** ([.github/plugin/plugin.json](.github/plugin/plugin.json)) — the plugin manifest. Declares the `agents/` and `skills/` directories as relative paths within the plugin directory. Copilot CLI blocks paths that escape the plugin directory (no `../` prefixes), so symlinks inside `.github/plugin/` point to the actual directories at `.github/agents/` and `.github/skills/`.
+- **`plugin.json`** ([plugin.json](plugin.json)) — at the repo root. Declares `".github/agents/"` and `".github/skills/"` as relative paths going into subdirectories. Placed at root so that paths to `.github/` don't require `../` (Copilot CLI blocks paths that escape the plugin directory).
+- **`marketplace.json`** ([.github/plugin/marketplace.json](.github/plugin/marketplace.json)) — the marketplace registry file. The `source` field is `"."` (repo root), pointing to the directory containing `plugin.json`.
 
 For more details, see [Creating a plugin marketplace for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace) and [Finding and installing plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing).
 
