@@ -104,9 +104,11 @@ AutoCloud is packaged as a **Copilot CLI plugin** with a marketplace listing. Th
 
 ```
 .github/
-├── plugin.json              # Plugin manifest — declares agents/ and skills/ directories
 ├── plugin/
-│   └── marketplace.json     # Marketplace listing — name, version, description, plugins array
+│   ├── plugin.json          # Plugin manifest — declares agents/ and skills/ directories
+│   ├── marketplace.json     # Marketplace listing — name, version, description, plugins array
+│   ├── agents -> ../agents  # Symlink to .github/agents/
+│   └── skills -> ../skills  # Symlink to .github/skills/
 ├── agents/                  # Agent definitions (.agent.md files)
 │   ├── autocloud.agent.md
 │   ├── autocloudonboarding.agent.md
@@ -128,7 +130,7 @@ AutoCloud is packaged as a **Copilot CLI plugin** with a marketplace listing. Th
 ```
 
 - **`marketplace.json`** ([.github/plugin/marketplace.json](.github/plugin/marketplace.json)) — the marketplace registry file. Copilot CLI recognizes any repository with this file at `.github/plugin/marketplace.json` as a plugin marketplace. The `source` field in each plugin entry points to the directory containing the plugin manifest, relative to the repo root.
-- **`plugin.json`** ([.github/plugin.json](.github/plugin.json)) — the plugin manifest. Declares the `agents/` and `skills/` directories as relative paths. These paths must stay **within** the plugin directory (no `../` prefixes — Copilot CLI blocks path traversal).
+- **`plugin.json`** ([.github/plugin/plugin.json](.github/plugin/plugin.json)) — the plugin manifest. Declares the `agents/` and `skills/` directories as relative paths within the plugin directory. Copilot CLI blocks paths that escape the plugin directory (no `../` prefixes), so symlinks inside `.github/plugin/` point to the actual directories at `.github/agents/` and `.github/skills/`.
 
 For more details, see [Creating a plugin marketplace for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-marketplace) and [Finding and installing plugins](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing).
 
