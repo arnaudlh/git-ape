@@ -367,10 +367,33 @@ jobs:
           }
           EOF
 
-      - name: Skip committing deployment state
+      - name: Commit deployment state
         if: always()
         run: |
-          echo "::notice::.azure deployment state is intentionally not committed to the repository"
+          DEPLOY_DIR="${{ steps.params.outputs.deploy_dir }}"
+          STATUS="${{ steps.deploy.outputs.deploy_status }}"
+          STATUS=${STATUS:-failed}
+
+          # Update metadata.json status from pending to actual result
+          if [[ -f "$DEPLOY_DIR/metadata.json" ]]; then
+            jq --arg status "$STATUS" '.status = $status' \
+              "$DEPLOY_DIR/metadata.json" > "$DEPLOY_DIR/metadata.json.tmp" \
+              && mv "$DEPLOY_DIR/metadata.json.tmp" "$DEPLOY_DIR/metadata.json"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Ensure we push to main regardless of which ref was checked out
+          git fetch origin main
+          git checkout main
+
+          # Copy state and metadata from the working tree
+          git checkout - -- "$DEPLOY_DIR/state.json" "$DEPLOY_DIR/metadata.json" 2>/dev/null || true
+
+          git add "$DEPLOY_DIR/state.json" "$DEPLOY_DIR/metadata.json"
+          git diff --cached --quiet || git commit -m "autocloud: update state for ${{ matrix.deployment_id }} [$STATUS]"
+          git push || echo "::warning::Could not push state update to main"
 
       - name: Post deployment result
         if: always() && github.event_name == 'issue_comment'
