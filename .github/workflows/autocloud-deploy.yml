@@ -15,6 +15,7 @@ on:
     branches: [main]
     paths:
       - ".azure/deployments/**/template.json"
+      - ".azure/deployments/**/parameters.json"
 
   # Trigger 2: `/deploy` comment on a PR
   issue_comment:
