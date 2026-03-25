@@ -123,7 +123,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Check resource group exists
+      - name: Check resource group and inventory resources
         id: check
         if: steps.state.outputs.found == 'true'
         run: |
@@ -132,13 +132,61 @@ jobs:
 
           if [[ "$EXISTS" == "true" ]]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            RESOURCE_COUNT=$(az resource list --resource-group "$RG" --query "length(@)" -o tsv)
+
+            # Inventory resources before deletion
+            RESOURCES=$(az resource list --resource-group "$RG" \
+              --query "[].{name:name, type:type, provisioningState:provisioningState}" \
+              --output json 2>/dev/null || echo "[]")
+            RESOURCE_COUNT=$(echo "$RESOURCES" | jq 'length')
+
             echo "resource_count=$RESOURCE_COUNT" >> "$GITHUB_OUTPUT"
-            echo "Resource group $RG exists with $RESOURCE_COUNT resources"
+            echo "resources<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$RESOURCES" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+
+            echo "Resource group $RG exists with $RESOURCE_COUNT resources:"
+            echo "$RESOURCES" | jq -r '.[] | "  - \(.type)/\(.name) (\(.provisioningState))"'
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Resource group $RG does not exist (already deleted?)"
           fi
+
+      - name: Post in-progress comment
+        id: progress_comment
+        if: steps.check.outputs.exists == 'true' && github.event_name == 'issue_comment'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const deploymentId = '${{ needs.parse-command.outputs.deployment_id }}';
+            const rg = '${{ steps.state.outputs.resource_group }}';
+            const resourceCount = '${{ steps.check.outputs.resource_count }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            let resources = '';
+            try {
+              const parsed = JSON.parse(`${{ steps.check.outputs.resources }}`);
+              resources = '\n| Name | Type |\n|------|------|\n';
+              for (const r of parsed) {
+                resources += `| ${r.name} | ${r.type} |\n`;
+              }
+            } catch {}
+
+            const marker = `<!-- autocloud-destroy:${deploymentId} -->`;
+            const body = `${marker}\n## AutoCloud Destroy: \`${deploymentId}\`\n\n` +
+              `### ⏳ Destroy In Progress\n\n` +
+              `- **Resource Group:** \`${rg}\`\n` +
+              `- **Resources:** ${resourceCount}\n` +
+              `- **Workflow Run:** [View logs](${runUrl})\n\n` +
+              `${resources}\n` +
+              `> Deleting resource group and all resources. This may take several minutes...\n`;
+
+            const { data: comment } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+            core.setOutput('comment_id', comment.id);
 
       - name: Delete resource group
         id: destroy
@@ -146,21 +194,28 @@ jobs:
         run: |
           RG="${{ steps.state.outputs.resource_group }}"
           echo "🗑️ Deleting resource group: $RG"
+          echo "This will block until the resource group is fully deleted..."
 
-          az group delete --name "$RG" --yes --no-wait 2>&1 || {
+          START_TIME=$(date +%s)
+
+          az group delete --name "$RG" --yes 2>&1 || {
             echo "destroy_status=failed" >> "$GITHUB_OUTPUT"
             echo "::error::Failed to delete resource group $RG"
             exit 1
           }
 
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
           echo "destroy_status=succeeded" >> "$GITHUB_OUTPUT"
-          echo "✅ Resource group deletion initiated: $RG"
+          echo "destroy_duration=${DURATION}s" >> "$GITHUB_OUTPUT"
+          echo "✅ Resource group deleted in ${DURATION}s: $RG"
 
       - name: Update deployment state
         if: always() && steps.state.outputs.found == 'true'
         run: |
           DEPLOYMENT_ID="${{ needs.parse-command.outputs.deployment_id }}"
-          STATE_FILE=".azure/deployments/$DEPLOYMENT_ID/state.json"
+          DEPLOY_DIR=".azure/deployments/$DEPLOYMENT_ID"
+          STATE_FILE="$DEPLOY_DIR/state.json"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           if [[ "${{ steps.check.outputs.exists }}" == "false" ]]; then
@@ -173,16 +228,24 @@ jobs:
 
           # Update state file
           jq --arg status "$STATUS" --arg ts "$TIMESTAMP" --arg actor "${{ github.actor }}" \
-            '. + {status: $status, destroyedAt: $ts, destroyedBy: $actor}' \
+            --arg duration "${{ steps.destroy.outputs.destroy_duration }}" \
+            '. + {status: $status, destroyedAt: $ts, destroyedBy: $actor, destroyDuration: $duration}' \
             "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+
+          # Update metadata.json status to match
+          if [[ -f "$DEPLOY_DIR/metadata.json" ]]; then
+            jq --arg status "$STATUS" '.status = $status' \
+              "$DEPLOY_DIR/metadata.json" > "$DEPLOY_DIR/metadata.json.tmp" \
+              && mv "$DEPLOY_DIR/metadata.json.tmp" "$DEPLOY_DIR/metadata.json"
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$STATE_FILE"
+          git add "$STATE_FILE" "$DEPLOY_DIR/metadata.json"
           git diff --cached --quiet || git commit -m "autocloud: mark $DEPLOYMENT_ID as $STATUS"
           git push || echo "::warning::Could not push state update"
 
-      - name: Post result
+      - name: Update result comment
         if: always() && github.event_name == 'issue_comment'
         uses: actions/github-script@v8
         with:
@@ -191,33 +254,56 @@ jobs:
             const rg = '${{ steps.state.outputs.resource_group }}';
             const exists = '${{ steps.check.outputs.exists }}';
             const destroyStatus = '${{ steps.destroy.outputs.destroy_status }}';
+            const destroyDuration = '${{ steps.destroy.outputs.destroy_duration }}';
             const resourceCount = '${{ steps.check.outputs.resource_count }}';
+            const progressCommentId = '${{ steps.progress_comment.outputs.comment_id }}';
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
 
-            let comment = `## AutoCloud Destroy: \`${deploymentId}\`\n\n`;
+            let resources = '';
+            try {
+              const parsed = JSON.parse(`${{ steps.check.outputs.resources }}`);
+              resources = '\n| Name | Type |\n|------|------|\n';
+              for (const r of parsed) {
+                resources += `| ${r.name} | ${r.type} |\n`;
+              }
+            } catch {}
+
+            const marker = `<!-- autocloud-destroy:${deploymentId} -->`;
+            let body = `${marker}\n## AutoCloud Destroy: \`${deploymentId}\`\n\n`;
 
             if (exists === 'false') {
-              comment += `### ⚠️ Already Destroyed\n\n`;
-              comment += `Resource group \`${rg}\` no longer exists.\n`;
+              body += `### ⚠️ Already Destroyed\n\n`;
+              body += `Resource group \`${rg}\` no longer exists.\n`;
             } else if (destroyStatus === 'succeeded') {
-              comment += `### ✅ Destroy Initiated\n\n`;
-              comment += `- **Resource Group:** \`${rg}\`\n`;
-              comment += `- **Resources Deleted:** ${resourceCount}\n`;
-              comment += `- **Workflow Run:** [View logs](${runUrl})\n\n`;
-              comment += `> Deletion is running in the background. It may take a few minutes to complete.\n`;
+              body += `### ✅ Destroyed\n\n`;
+              body += `- **Resource Group:** \`${rg}\`\n`;
+              body += `- **Resources Deleted:** ${resourceCount}\n`;
+              body += `- **Duration:** ${destroyDuration}\n`;
+              body += `- **Workflow Run:** [View logs](${runUrl})\n`;
+              body += resources;
             } else {
-              comment += `### ❌ Destroy Failed\n\n`;
-              comment += `- **Resource Group:** \`${rg}\`\n`;
-              comment += `- **Workflow Run:** [View logs](${runUrl})\n\n`;
-              comment += `Check the workflow logs for details.\n`;
+              body += `### ❌ Destroy Failed\n\n`;
+              body += `- **Resource Group:** \`${rg}\`\n`;
+              body += `- **Workflow Run:** [View logs](${runUrl})\n\n`;
+              body += `Check the workflow logs for details.\n`;
             }
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: comment,
-            });
+            // Update the in-progress comment if it exists, otherwise create new
+            if (progressCommentId) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: parseInt(progressCommentId),
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 
       - name: Notify via Slack
         if: always()
@@ -234,7 +320,7 @@ jobs:
 
           if [[ "$STATUS" == "succeeded" ]]; then
             EMOJI="🗑️"
-            MSG="Resource group *$RG* ($DEPLOY_ID) destroy initiated"
+            MSG="Resource group *$RG* ($DEPLOY_ID) destroyed"
           else
             EMOJI="❌"
             MSG="Destroy failed for *$RG* ($DEPLOY_ID)"
