@@ -80,7 +80,7 @@ AutoCloud can run in two modes. Detect which mode is active and adapt behavior a
 - **GitHub Actions workflows handle the rest automatically:**
   - `autocloud-plan.yml` — runs on PR open/update, validates template + runs what-if, posts plan as PR comment
   - `autocloud-deploy.yml` — runs on PR merge to main OR on `/deploy` comment (requires PR approval)
-  - `autocloud-destroy.yml` — runs on `/destroy <deployment-id>` comment
+  - `autocloud-destroy.yml` — runs on PR merge when `metadata.json` status is `destroy-requested`
 - The agent should **NOT execute `az deployment` commands directly** in headless mode — commit the files and let the workflows handle it
 
 **How to detect mode:**
@@ -97,7 +97,7 @@ AutoCloud can run in two modes. Detect which mode is active and adapt behavior a
 | Validation | Run locally | `autocloud-plan.yml` runs on PR, posts what-if as comment |
 | Confirmation | Ask user interactively | PR approval = confirmation |
 | Deployment | Execute immediately | `autocloud-deploy.yml` runs on merge or `/deploy` comment |
-| Destroy | Execute after confirmation | `/destroy <id>` comment triggers `autocloud-destroy.yml` |
+| Destroy | Execute after confirmation | PR sets `metadata.json` status to `destroy-requested` → merge triggers `autocloud-destroy.yml` |
 | Results | Display in chat | Posted as PR/issue comment + state committed to repo |
 
 ## Your Role
@@ -348,7 +348,7 @@ Run post-deployment validation:
   > @autocloud destroy deployment {deployment-id}
   
   Or via GitHub (if using CI/CD):
-  > Comment `/destroy {deployment-id}` on any issue or PR
+  > Create a PR that sets `metadata.json` status to `destroy-requested`, then merge after approval
   ```
 
 ## Additional Workflows

@@ -245,7 +245,7 @@ Provide a comprehensive summary:
 To destroy this deployment and delete all its resources:
 > `@autocloud destroy deployment {deployment-id}`
 >
-> Or via GitHub: comment `/destroy {deployment-id}` on any issue or PR
+> Or via GitHub: create a PR that sets `metadata.json` status to `destroy-requested`, then merge after approval
 
 **Deployment Logs:** {Link to deployment logs if available}
 ```

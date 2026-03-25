@@ -476,7 +476,7 @@ The following workflows will be added:
 |----------|---------|---------|
 | `autocloud-plan.yml` | PR with template changes | Validate, security scan, what-if, cost estimate |
 | `autocloud-deploy.yml` | Merge to main or `/deploy` comment | Execute ARM deployment |
-| `autocloud-destroy.yml` | `/destroy <id>` comment | Delete resource group |
+| `autocloud-destroy.yml` | Merge PR with `destroy-requested` status | Delete resource group |
 | `autocloud-drift.yml` | Every 6 hours (cron) | Detect configuration drift |
 | `autocloud-ttl-reaper.yml` | Daily at 2 AM UTC | Destroy expired deployments |
 | `autocloud-verify.yml` | Manual dispatch | Verify OIDC, RBAC, and pipeline health |

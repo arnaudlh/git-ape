@@ -207,16 +207,20 @@ AutoCloud provides three GitHub Actions workflows under `.github/workflows/`:
 #### `autocloud-destroy.yml` — Tear Down Resources
 
 **Triggers:**
-- `/destroy <deployment-id>` comment on any issue or PR
-- Manual workflow dispatch with deployment ID + "destroy" confirmation
+- Push to `main` with changes to `metadata.json` where status is `destroy-requested` (PR merge)
+- Manual workflow dispatch with deployment ID + "destroy" confirmation (emergency fallback)
 
 **What it does:**
-1. Parses the deployment ID from the comment
+1. Detects deployments where `metadata.json` status changed to `destroy-requested`
 2. Reads `state.json` to find the resource group name
-3. Checks if the resource group still exists
-4. Deletes the resource group (`az group delete`)
-5. Updates `state.json` with destroyed status
-6. Posts result as a comment
+3. Inventories all resources in the resource group
+4. Deletes the resource group (`az group delete` — synchronous, waits for completion)
+5. Updates `state.json` and `metadata.json` with `destroyed` status and commits to repo
+
+**Destroy flow:**
+1. Agent or user creates a PR that sets `metadata.json` status to `destroy-requested`
+2. PR is reviewed and approved (human gate for destructive action)
+3. On merge to `main`, the workflow detects the status change and executes deletion
 
 **Requires:** GitHub environment `azure-destroy` (for environment protection rules)
 
@@ -265,7 +269,9 @@ Issue: "Deploy a Container App in Southeast Asia, project myapp"
                     ▼
     ┌───────────────────────────────┐
     │  Teardown (when needed)       │
-    │  /destroy deploy-YYYYMMDD-... │
+    │  PR: set metadata.json        │
+    │  status → destroy-requested   │
+    │  Merge → autocloud-destroy    │
     └───────────────────────────────┘
 ```
 
@@ -279,7 +285,7 @@ Create two GitHub environments for protection rules:
 
 **`azure-destroy`:**
 - Required reviewers (recommended — destructive action)
-- No branch restriction (can be triggered from any issue/PR)
+- Deployment branches: `main` only (triggered on PR merge)
 
 ## Security Baseline
 

@@ -163,7 +163,7 @@ AutoCloud works in two modes — same agents and skills, different execution con
   │  Destroy:                    │     │  Deployed via:                   │
   │  @autocloud destroy {id}     │     │  • autocloud-plan.yml (PR)       │
   │                              │     │  • autocloud-deploy.yml (merge)  │
-  │                              │     │  • autocloud-destroy.yml (/cmd)  │
+  │                              │     │  • autocloud-destroy.yml (merge) │
   └─────────────────────────────┘     └──────────────────────────────────┘
 ```
 
