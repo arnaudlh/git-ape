@@ -66,6 +66,10 @@ Start with one of these prompts in Copilot Chat:
 - `@autocloud deploy a web app with SQL database`
 - `@AutoCloud Onboarding set up this repo for Azure deployments`
 
+### 4. Tear Down
+Use @autocloud to clean up afterwards by using:
+- `@autocloud destroy Python function app`
+
 ## Where To Go Next
 
 - [docs/EXAMPLES.md](docs/EXAMPLES.md): Longer end-to-end examples and sample conversations.
