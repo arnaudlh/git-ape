@@ -26,6 +26,7 @@ permissions:
   pull-requests: write     # Post deployment results as PR comment
   issues: write            # Post on issue comments
   security-events: write   # Upload SARIF results from template analyzer
+  actions: read            # Required by codeql-action/upload-sarif to read workflow run context
 
 concurrency:
   group: autocloud-deploy-${{ github.event_name == 'push' && github.sha || github.event.comment.id }}
