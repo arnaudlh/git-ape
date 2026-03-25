@@ -255,7 +255,13 @@ jobs:
             echo "deploy_error<<EOF" >> "$GITHUB_OUTPUT"
             echo "$DEPLOY_OUTPUT" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
-            echo "::error::Deployment failed"
+            echo ""
+            echo "=========================================="
+            echo "❌ DEPLOYMENT FAILED"
+            echo "=========================================="
+            echo "$DEPLOY_OUTPUT"
+            echo "=========================================="
+            echo "::error::Deployment failed — see output above for details"
             exit 1
           fi
 
