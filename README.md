@@ -35,6 +35,9 @@ Common tasks it supports:
 
 ## Get Started
 
+##Prerequisite
+- Only tested with BASH shells (git-bash for windows)
+
 ### 1. Install the plugin
 
 Recommended:
