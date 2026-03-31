@@ -365,15 +365,23 @@ jobs:
             --parameters @"${{ steps.params.outputs.deploy_dir }}/parameters.json" \
             --output json 2>&1) || true
 
-          ERROR=$(echo "$RESULT" | jq -r '.error // empty' 2>/dev/null)
+          # Guard against non-JSON output (e.g. auth/CLI errors) — jq exits non-zero
+          # on invalid input which would crash the script under bash -e.
+          ERROR=$(echo "$RESULT" | jq -r '.error // empty' 2>/dev/null || echo "")
 
           if [[ -n "$ERROR" && "$ERROR" != "null" ]]; then
             echo "validation_status=failed" >> "$GITHUB_OUTPUT"
             echo "validation_error<<EOF" >> "$GITHUB_OUTPUT"
             echo "$RESULT" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
-          else
+          elif echo "$RESULT" | jq -e . >/dev/null 2>&1; then
             echo "validation_status=passed" >> "$GITHUB_OUTPUT"
+          else
+            # az returned non-JSON (e.g. a plain-text error or auth failure)
+            echo "validation_status=failed" >> "$GITHUB_OUTPUT"
+            echo "validation_error<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$RESULT" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run what-if analysis
