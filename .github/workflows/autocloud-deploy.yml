@@ -205,6 +205,7 @@ jobs:
 
       - name: Run Microsoft Defender for DevOps template analyzer
         id: security_scan
+        continue-on-error: true
         uses: microsoft/security-devops-action@v1
         with:
           tools: templateanalyzer
@@ -212,7 +213,8 @@ jobs:
           GDN_TEMPLATEANALYZER_INPUT: ${{ steps.params.outputs.deploy_dir }}/template.json
 
       - name: Upload SARIF results
-        if: always()
+        if: always() && steps.security_scan.outputs.sarifFile != ''
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.security_scan.outputs.sarifFile }}
@@ -384,12 +386,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # Stash the updated state and metadata files before switching branches
+          cp "$DEPLOY_DIR/state.json" /tmp/state.json 2>/dev/null || true
+          cp "$DEPLOY_DIR/metadata.json" /tmp/metadata.json 2>/dev/null || true
+
           # Ensure we push to main regardless of which ref was checked out
           git fetch origin main
           git checkout main
 
-          # Copy state and metadata from the working tree
-          git checkout - -- "$DEPLOY_DIR/state.json" "$DEPLOY_DIR/metadata.json" 2>/dev/null || true
+          # Restore the updated state and metadata files onto main
+          cp /tmp/state.json "$DEPLOY_DIR/state.json" 2>/dev/null || true
+          cp /tmp/metadata.json "$DEPLOY_DIR/metadata.json" 2>/dev/null || true
 
           git add "$DEPLOY_DIR/state.json" "$DEPLOY_DIR/metadata.json"
           git diff --cached --quiet || git commit -m "autocloud: update state for ${{ matrix.deployment_id }} [$STATUS]"

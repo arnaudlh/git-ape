@@ -24,7 +24,7 @@ All 🔴 Critical and 🟠 High checks pass. Advisory findings listed below for 
 | 6 | Azure CNI networking (not kubenet) | 🟠 High | ✅ Applied | `properties.networkProfile.networkPlugin: "azure"` |
 | 7 | Azure Policy addon enabled | 🟠 High | ✅ Applied | `properties.addonProfiles.azurepolicy.enabled: true` |
 | 8 | Auto-upgrade channel configured | 🟡 Medium | ✅ Applied | `properties.autoUpgradeProfile.upgradeChannel: "stable"` |
-| 9 | Container Insights monitoring | 🟡 Medium | ✅ Applied | `properties.addonProfiles.omsagent.enabled: true` with Log Analytics workspace reference |
+| 9 | Container Insights monitoring | 🟡 Medium | ✅ Applied | `properties.azureMonitorProfile.containerInsights.enabled: true` with Log Analytics workspace reference |
 | 10 | Availability zones for node pool | 🟡 Medium | ✅ Applied | `properties.agentPoolProfiles[0].availabilityZones: ["1","2","3"]` |
 | 11 | Private cluster (API server not public) | 🟡 Medium | ⚠️ Not applied | API server is publicly accessible. Consider `properties.apiServerAccessProfile.enablePrivateCluster: true` for production. Acceptable for dev environment. |
 | 12 | Defender for Containers | 🟡 Medium | ⚠️ Not applied | Microsoft Defender for Containers not enabled. Consider for production environments. |
@@ -44,7 +44,7 @@ All 🔴 Critical and 🟠 High checks pass. Advisory findings listed below for 
 | # | Check | Severity | Status | Evidence |
 |---|-------|----------|--------|----------|
 | 1 | Retention period configured | 🟢 Low | ✅ Applied | `properties.retentionInDays: 30` |
-| 2 | Linked to AKS cluster | 🟠 High | ✅ Applied | AKS `omsagent` addon references workspace via `logAnalyticsWorkspaceResourceID` |
+| 2 | Linked to AKS cluster | 🟠 High | ✅ Applied | AKS `azureMonitorProfile.containerInsights` references workspace via `logAnalyticsWorkspaceResourceId` |
 
 ### 4. Role Assignment (Network Contributor)
 
