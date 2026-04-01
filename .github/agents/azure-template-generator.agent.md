@@ -208,7 +208,8 @@ Many Azure subscriptions enforce `allowSharedKeyAccess: false` via Azure Policy.
 #### General Best Practices
 
 For **ALL resources**:
-- ✓ Use latest API versions (2023+ preferred)
+- ✓ Use latest **stable** API versions — invoke `/azure-resource-availability` to query the latest non-preview API version for each resource type; never hardcode
+- ✓ Validate that all resource properties used in the template exist in the chosen API version's schema
 - ✓ Enable diagnostic settings and logging
 - ✓ Apply resource tags from workspace standards
 - ✓ Use `dependsOn` for proper ordering
@@ -356,7 +357,17 @@ Use Azure MCP tools and the preflight skill to validate:
    - Check for security misconfigurations
    - Identify cost optimization opportunities
    
-3. **Preflight What-If Analysis** - Invoke `/azure-deployment-preflight` skill
+3. **Resource Availability Gate** — Invoke `/azure-resource-availability` skill (BLOCKING)
+   - Parse the generated template for all resource types, SKUs, service versions, and API versions
+   - Validate VM SKU availability in target region + subscription
+   - Check service version support (Kubernetes, runtimes) — versions expire over time
+   - Verify API version compatibility — ensure all properties exist in the chosen API version
+   - Check subscription quota for compute resources
+   - **If BLOCKED:** report issues with alternatives; do NOT proceed to what-if
+   - **If PASSED:** continue to preflight
+   - Save report to `.azure/deployments/$DEPLOYMENT_ID/availability-report.md`
+
+4. **Preflight What-If Analysis** - Invoke `/azure-deployment-preflight` skill
    - Runs `az deployment sub what-if` against the generated template
    - Categorizes resource changes: Create / Modify / Delete / NoChange
    - Generates `preflight-report.md` with detailed findings

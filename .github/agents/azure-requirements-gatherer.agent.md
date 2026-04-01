@@ -284,11 +284,30 @@ Use Azure MCP tools to check:
    fi
    ```
    
-5. **Regional Availability** - Verify requested SKU/service available in target region
-   - Tool: `mcp_azure_mcp_search` with `quota` intent if available
+5. **Resource Availability** — Invoke `/azure-resource-availability` skill
+   - Validates VM SKU availability in target region (catches subscription restrictions)
+   - Checks service version support (e.g., Kubernetes GA versions, runtime versions)
+   - Verifies API version compatibility for each resource type
+   - Checks subscription quota (vCPU limits) against requested resources
+   - Confirms resource provider registration
+   - **If BLOCKED:** present alternatives from the availability report before finalizing
+   - **If PASSED:** proceed to template generation
    
+   ```markdown
+   Example flow:
+   User requests: AKS with Standard_B2s in eastus, K8s 1.30
+   
+   → /azure-resource-availability checks:
+     ❌ Standard_B2s restricted in eastus → suggests Standard_D2as_v5
+     ❌ K8s 1.30 is LTS-only → suggests 1.33 (latest GA)
+     ✅ vCPU quota sufficient
+     ✅ Microsoft.ContainerService registered
+   
+   → Agent presents alternatives before generating template
+   ```
+
 6. **Quota Limits** - Check if subscription has capacity
-   - Especially important for: vCPUs, Storage accounts, Public IPs
+   - Covered by `/azure-resource-availability` — vCPUs, storage accounts, public IPs
 ```
 
 ### 4. Output Requirements Document

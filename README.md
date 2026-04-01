@@ -139,6 +139,7 @@ Use @autocloud to clean up afterwards by using:
 | Skill | Purpose |
 |-------|----------|
 | `/azure-naming-research` | CAF abbreviation lookup, naming constraint validation |
+| `/azure-resource-availability` | Pre-deploy checks: SKU restrictions, version support, API compatibility, quota |
 | `/azure-security-analyzer` | Per-resource security assessment with blocking gate |
 | `/azure-deployment-preflight` | What-if analysis and permission checks before deploy |
 | `/azure-role-selector` | Least-privilege RBAC role recommendations |
