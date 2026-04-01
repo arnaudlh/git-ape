@@ -36,6 +36,29 @@ TEMPLATE="path/to/template.json"
 
 Verify files exist before proceeding.
 
+### Step 1.5: Resource Availability Gate
+
+**Invoke `/azure-resource-availability` skill** to validate all resources in the template before running what-if.
+
+This catches issues that `az deployment sub validate` and what-if do NOT catch — such as:
+- VM SKU restrictions per subscription/region
+- Deprecated or LTS-only service versions (e.g., Kubernetes)
+- API version incompatibilities (fields that don't exist in the chosen version)
+- Quota limits that would be exceeded
+
+```bash
+# Parse template for resources to check
+# For each resource: extract type, apiVersion, SKU, service version, region
+# Pass to /azure-resource-availability
+```
+
+**Gate behavior:**
+- ✅ PASSED → continue to Step 2
+- ⚠️ WARNINGS → continue but include warnings in preflight report
+- ❌ BLOCKED → STOP. Report blocking issues with alternatives. Do not proceed to what-if.
+
+Save the availability report to `.azure/deployments/$DEPLOYMENT_ID/availability-report.md`.
+
 ### Step 2: Validate Template Syntax
 
 Check the ARM template is valid JSON and follows schema:
