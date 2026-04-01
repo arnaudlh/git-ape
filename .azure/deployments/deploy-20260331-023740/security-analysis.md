@@ -25,7 +25,7 @@ All 🔴 Critical and 🟠 High checks pass. Advisory findings listed below for 
 | 7 | Azure Policy addon enabled | 🟠 High | ✅ Applied | `properties.addonProfiles.azurepolicy.enabled: true` |
 | 8 | Auto-upgrade channel configured | 🟡 Medium | ✅ Applied | `properties.autoUpgradeProfile.upgradeChannel: "stable"` |
 | 9 | Container Insights monitoring | 🟡 Medium | ✅ Applied | `properties.azureMonitorProfile.containerInsights.enabled: true` with Log Analytics workspace reference |
-| 10 | Availability zones for node pool | 🟡 Medium | ✅ Applied | `properties.agentPoolProfiles[0].availabilityZones: ["1","2","3"]` |
+| 10 | Availability zones for node pool | 🟡 Medium | ⚠️ Not applied | `availabilityZones` not set on agent pool. Single-node dev cluster — acceptable for non-production. Add `availabilityZones: ["1","2","3"]` for production. |
 | 11 | Private cluster (API server not public) | 🟡 Medium | ⚠️ Not applied | API server is publicly accessible. Consider `properties.apiServerAccessProfile.enablePrivateCluster: true` for production. Acceptable for dev environment. |
 | 12 | Defender for Containers | 🟡 Medium | ⚠️ Not applied | Microsoft Defender for Containers not enabled. Consider for production environments. |
 | 13 | Managed OS disk encryption | 🟡 Medium | 🔄 Platform Default | Azure SSE is enabled by default on all managed disks. Not explicitly configured in template. |
@@ -69,7 +69,7 @@ All 🔴 Critical and 🟠 High checks pass. Advisory findings listed below for 
 |----------|-------|-----------|------------|-------------|----------|
 | 🔴 Critical | 4 | 4 | 0 | 0 | 0 |
 | 🟠 High | 5 | 5 | 0 | 0 | 0 |
-| 🟡 Medium | 6 | 3 | 1 | 2 | 0 |
+| 🟡 Medium | 6 | 2 | 1 | 3 | 0 |
 | 🟢 Low | 6 | 5 | 0 | 1 | 0 |
 
 ## Recommendations
