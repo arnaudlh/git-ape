@@ -251,7 +251,7 @@ The security analyzer produces a gate status for the template:
            │
            ▼
      ┌───────────┐
-     │ Gate Pass? │──── 🟢 YES ───▶ Stage 3 (Confirmation)
+     │ Gate Pass? │──── 🟢 YES ───▶ Stage 2.75 (Architecture Review) ───▶ Stage 2.85 (Confirmation)
      └─────┬─────┘
            │ 🔴 NO
            ▼
@@ -282,13 +282,41 @@ The security analyzer produces a gate status for the template:
 }
 ```
 
-### Stage 2.75: Deployment Confirmation
+### Stage 2.75: Architecture Review (MANDATORY)
+**Delegate to:** `azure-principal-architect`
 
-**Only reachable after security gate passes (or is explicitly overridden).**
+**This stage runs automatically after the security gate passes.** Do not skip it.
+
+Delegate to the Azure Principal Architect agent with the generated ARM template and architecture diagram. The architect evaluates the deployment against all 5 WAF pillars:
+
+1. **Security** — Identity, network isolation, encryption, least privilege
+2. **Reliability** — Redundancy, availability zones, backup, disaster recovery
+3. **Performance Efficiency** — SKU sizing, scaling strategy, caching
+4. **Cost Optimization** — Right-sizing, reserved capacity, unused resources
+5. **Operational Excellence** — Monitoring, alerting, IaC practices, tagging
+
+**Input:** Pass the template path, architecture diagram, cost estimate, and security analysis to the architect.
+
+**Output:** The architect returns a scored assessment with:
+- Per-pillar score (1-5) and findings
+- Actionable recommendations prioritized by impact
+- Trade-off analysis when pillars conflict (e.g., security vs. cost)
+
+**How to handle recommendations:**
+- **Critical findings** (score 1-2 on any pillar): Present to user and recommend fixes before deploying
+- **Improvement suggestions** (score 3-4): Include in deployment summary as "post-deployment improvements"
+- **All good** (score 5): Note the clean assessment and proceed
+
+The architect's assessment is saved to `.azure/deployments/$DEPLOYMENT_ID/waf-review.md`.
+
+### Stage 2.85: Deployment Confirmation
+
+**Only reachable after security gate passes (or is explicitly overridden) and architecture review completes.**
 
 Echo the deployment intent to the user showing:
 - **Target environment** (subscription name, subscription ID, tenant name, tenant domain)
 - **Architecture diagram** (Mermaid visual of all resources and relationships)
+- **WAF architecture review** (per-pillar scores and key findings from Principal Architect)
 - **Security gate result** (PASSED or OVERRIDDEN with details)
 - **Security best practices analysis** (per-resource assessment with severity ratings)
 - What will be created (resource group included in the ARM template)
