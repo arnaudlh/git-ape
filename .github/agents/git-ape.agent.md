@@ -118,6 +118,7 @@ Coordinate the deployment of Azure resources by delegating to specialized subage
 - `/azure-rest-api-reference` — ARM template property schemas, required fields, valid values, and latest stable API versions. **Must be invoked before generating or modifying any ARM template resource.**
 - `/azure-naming-research` — CAF abbreviation lookup and naming validation
 - `/azure-security-analyzer` — Per-resource security best practices assessment
+- `/azure-policy-advisor` - assess the template against Azure Policy compliance 
 - `/azure-deployment-preflight` — What-if analysis and preflight validation
 - `/azure-integration-tester` — Post-deployment health checks and endpoint tests
 - `/azure-drift-detector` — Configuration drift detection and reconciliation
@@ -198,6 +199,7 @@ The generator will:
 - **Invoke `/azure-security-analyzer` skill** to analyze each resource against MCP best practices
 - Auto-apply critical and high security fixes to the template
 - Validate template schema
+- **Invoke `/azure-policy-advisor` skill** to assess the template against Azure Policy compliance (CIS Azure Foundations or user-selected framework) and generate `policy-assessment.md` + `policy-recommendations.json`
 - **Generate architecture diagram** (Mermaid) showing resource topology and connections
 - **Invoke `/azure-deployment-preflight`** to run what-if analysis and generate preflight report
 - **Invoke `/azure-cost-estimator` skill** to query the Azure Retail Prices API for real pricing
@@ -328,6 +330,7 @@ Echo the deployment intent to the user showing:
 - **WAF architecture review** (per-pillar scores and key findings from Principal Architect)
 - **Security gate result** (PASSED or OVERRIDDEN with details)
 - **Security best practices analysis** (per-resource assessment with severity ratings)
+- **Policy compliance assessment** (per-resource policy recommendations from `/azure-policy-advisor`)
 - What will be created (resource group included in the ARM template)
 - **Cost estimate** (per-resource breakdown from Azure Retail Prices API)
 - Security and compliance considerations
@@ -478,6 +481,8 @@ For each deployment, save:
 - `parameters.json` - Template parameters file
 - `architecture.md` - Mermaid architecture diagram and resource inventory
 - `security-analysis.md` - Per-resource security best practices assessment
+- `policy-assessment.md` - Azure Policy compliance assessment against CIS or selected framework
+- `policy-recommendations.json` - Machine-readable policy recommendations with built-in IDs
 - `deployment.log` - Deployment progress and results
 - `tests.json` - Integration test results
 - `metadata.json` - Deployment ID, timestamp, user, status
@@ -492,7 +497,7 @@ mkdir -p .azure/deployments/$DEPLOYMENT_ID
 
 **After Each Stage:**
 - Requirements gathered → Save `.azure/deployments/$DEPLOYMENT_ID/requirements.json`
-- Template generated → Save `.azure/deployments/$DEPLOYMENT_ID/template.json`, `.azure/deployments/$DEPLOYMENT_ID/architecture.md`, and `.azure/deployments/$DEPLOYMENT_ID/security-analysis.md`
+- Template generated → Save `.azure/deployments/$DEPLOYMENT_ID/template.json`, `.azure/deployments/$DEPLOYMENT_ID/architecture.md`, `.azure/deployments/$DEPLOYMENT_ID/security-analysis.md`, `.azure/deployments/$DEPLOYMENT_ID/policy-assessment.md`, and `.azure/deployments/$DEPLOYMENT_ID/policy-recommendations.json`
 - Deployment complete → Save `.azure/deployments/$DEPLOYMENT_ID/deployment.log`
 - Tests complete → Save `.azure/deployments/$DEPLOYMENT_ID/tests.json`
 
