@@ -64,11 +64,54 @@ If you prefer to inspect or execute each component manually, follow the steps be
 
 ### Prerequisites
 
-| Tool | Version | Install |
-|------|---------|---------|
-| Azure CLI | 2.50+ | `brew install azure-cli` |
-| GitHub CLI | 2.0+ | `brew install gh` |
-| jq | 1.6+ | `brew install jq` |
+> **Tip:** Run `/prereq-check` in Copilot Chat to automatically validate all tools and auth sessions.
+
+| Tool | Minimum Version | Purpose |
+|------|-----------------|---------|
+| Azure CLI (`az`) | 2.50+ | Azure resource management, RBAC, OIDC |
+| GitHub CLI (`gh`) | 2.0+ | Repo secrets, environments, OIDC detection |
+| jq | 1.6+ | JSON parsing in scripts and workflows |
+| git | any | Version control (usually pre-installed) |
+
+**Install (pick your platform):**
+
+<details><summary>macOS (Homebrew)</summary>
+
+```bash
+brew install azure-cli gh jq
+```
+</details>
+
+<details><summary>Ubuntu / Debian</summary>
+
+```bash
+# Azure CLI
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# GitHub CLI
+(type -p wget >/dev/null || sudo apt-get install wget -y) \
+  && sudo mkdir -p -m 755 /etc/apt/keyrings \
+  && out=$(mktemp) && wget -nv -O"$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  && cat "$out" | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+  && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+  && sudo apt-get update && sudo apt-get install gh -y
+
+# jq
+sudo apt-get install -y jq
+```
+</details>
+
+<details><summary>Windows (PowerShell)</summary>
+
+```powershell
+winget install Microsoft.AzureCLI
+winget install GitHub.cli
+winget install jqlang.jq
+```
+
+> **Note:** AutoCloud skills require a BASH shell. Install [Git for Windows](https://gitforwindows.org/) and use git-bash.
+</details>
 
 You must be logged in to both:
 ```bash

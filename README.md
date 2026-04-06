@@ -37,6 +37,7 @@ Common tasks it supports:
 
 ### Prerequisite
 - Only tested with BASH shells (git-bash for windows)
+- Run `/prereq-check` in Copilot Chat to verify all required tools (`az`, `gh`, `jq`, `git`) and auth sessions
 
 ### 1. Install the plugin
 
@@ -122,16 +123,17 @@ Skills are invoked by agents at specific stages. Each skill handles one focused 
 
 | Phase | Skill | Purpose |
 |-------|-------|---------|
-| **Pre-Deploy** | `/azure-naming-research` | CAF names & rules |
-| | `/azure-resource-availability` | SKU, quota, API checks |
-| | `/azure-security-analyzer` | Security best practices |
-| | `/azure-deployment-preflight` | What-if & permissions |
-| | `/azure-role-selector` | Least-privilege RBAC |
-| | `/azure-cost-estimator` | Retail pricing lookup |
-| **Post-Deploy** | `/azure-integration-tester` | Health & endpoint tests |
-| | `/azure-resource-visualizer` | Mermaid diagram from Azure |
-| **Operations** | `/azure-drift-detector` | Drift detection & fix |
-| | `/git-ape-onboarding` | OIDC, RBAC, env setup |
+| **Pre-Deploy** | `/azure-naming-research` | CAF abbreviation lookup, naming constraint validation |
+| | `/azure-resource-availability` | SKU restrictions, version support, API compatibility, quota |
+| | `/azure-security-analyzer` | Per-resource security assessment with blocking gate |
+| | `/azure-deployment-preflight` | What-if analysis and permission checks before deploy |
+| | `/azure-role-selector` | Least-privilege RBAC role recommendations |
+| | `/azure-cost-estimator` | Real-time cost estimation via Azure Retail Prices API |
+| | `/prereq-check` | Verify required CLI tools and auth sessions are ready |
+| **Post-Deploy** | `/azure-integration-tester` | Post-deployment health checks and endpoint tests |
+| | `/azure-resource-visualizer` | Generate Mermaid diagrams from live Azure resources |
+| **Operations** | `/azure-drift-detector` | Detect config drift between live Azure and stored state |
+| | `/git-ape-onboarding` | Guided setup for OIDC, RBAC, environments, and secrets |
 
 ### Deployment Flow
 

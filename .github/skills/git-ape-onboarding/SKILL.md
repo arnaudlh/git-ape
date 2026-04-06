@@ -30,22 +30,17 @@ This skill configures:
 
 ## Prerequisites
 
-Verify before execution:
+Before onboarding, run the **prereq-check** skill to verify all required tools are installed and auth sessions are active:
 
-```bash
-command -v az
-command -v gh
-command -v jq
-az account show
-gh auth status
+```text
+/prereq-check
 ```
 
-If auth is missing, stop and ask the user to run:
+The prereq-check skill validates: `az` (≥ 2.50), `gh` (≥ 2.0), `jq` (≥ 1.6), `git`, and active Azure/GitHub auth sessions. If anything is missing, it shows platform-specific install commands.
 
-```bash
-az login
-gh auth login
-```
+Do NOT proceed with onboarding until prereq-check reports **✅ READY**.
+
+Additionally, the Azure identity used must have **Owner** or **User Access Administrator** on the target subscription(s), and the GitHub identity must have **admin** access to the target repository.
 
 ## Execution Modes
 
@@ -111,11 +106,12 @@ OIDC_PREFIX="repository_owner_id:<OWNER_ID>:repository_id:<REPO_ID>"
 
 ## Suggested Agent Flow
 
-1. Confirm target repo URL, onboarding mode, and role model.
-2. Validate prerequisites and current Azure/GitHub auth context.
-3. Ask for final confirmation.
-4. Execute the required Azure CLI and GitHub CLI commands directly from this playbook.
-5. Summarize outcome and suggest verification commands.
+1. **Run `/prereq-check`** to validate tools and auth. Stop if it doesn't report ✅ READY.
+2. Confirm target repo URL, onboarding mode, and role model.
+3. Validate current Azure/GitHub auth context (subscription, tenant, GitHub org).
+4. Ask for final confirmation.
+5. Execute the required Azure CLI and GitHub CLI commands directly from this playbook.
+6. Summarize outcome and suggest verification commands.
 
 ## Known Gotchas
 
