@@ -25,7 +25,8 @@
         "ms-azuretools.vscode-azureresourcegroups",
         "ms-azuretools.vscode-azurefunctions",
         "ms-azuretools.vscode-azure-mcp-server",
-        "bewhite.psrule-vscode"
+        "bewhite.psrule-vscode",
+        "vstirbu.vscode-mermaid-preview"
       ],
       "settings": {
         "azureMcp.serverMode": "namespace",
