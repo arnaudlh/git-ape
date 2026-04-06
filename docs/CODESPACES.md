@@ -53,7 +53,6 @@ The following extensions are automatically installed in the container:
 | GitHub Copilot Chat | Chat-based AI assistance |
 | Azure Resource Groups | Browse and manage Azure resource groups |
 | Azure Functions | Develop and deploy Azure Functions |
-| Azure Resource Manager Tools | ARM template authoring with IntelliSense |
 | Azure MCP Server | Azure MCP integration for Copilot agents |
 | PSRule | Run PSRule validation from VS Code |
 

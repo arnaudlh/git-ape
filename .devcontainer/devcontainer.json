@@ -5,6 +5,7 @@
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/copilot-cli:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
       "configureZshAsDefaultShell": true,
@@ -28,7 +29,6 @@
         "github.copilot-chat",
         "ms-azuretools.vscode-azureresourcegroups",
         "ms-azuretools.vscode-azurefunctions",
-        "msazurermtools.azurerm-vscode-tools",
         "ms-azuretools.vscode-azure-mcp-server",
         "bewhite.psrule-vscode"
       ],
