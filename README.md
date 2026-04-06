@@ -37,6 +37,7 @@ Common tasks it supports:
 
 ### Prerequisite
 - Only tested with BASH shells (git-bash for windows)
+- Run `/prereq-check` in Copilot Chat to verify all required tools (`az`, `gh`, `jq`, `git`) and auth sessions
 
 ### 1. Install the plugin
 
@@ -148,6 +149,7 @@ Use @autocloud to clean up afterwards by using:
 | `/azure-integration-tester` | Post-deployment health checks and endpoint tests |
 | `/azure-resource-visualizer` | Generate Mermaid diagrams from live Azure resources |
 | `/autocloud-onboarding` | Guided setup for OIDC, RBAC, environments, and secrets |
+| `/prereq-check` | Verify required CLI tools and auth sessions are ready |
 
 ### Execution Modes
 
