@@ -23,8 +23,8 @@ Evaluate Azure deployments against the 5 WAF pillars. Provide actionable archite
 
 ## Output Styling
 
-Follow the shared presentation style defined in AutoCloud:
-see [autocloud.agent.md](autocloud.agent.md).
+Follow the shared presentation style defined in Git-Ape:
+see [git-ape.agent.md](git-ape.agent.md).
 
 ## WAF Pillar Assessment
 
@@ -108,7 +108,7 @@ For each recommendation include:
 - **Azure Services** with specific configurations
 - **Implementation guidance** with next steps
 
-## Integration with AutoCloud
+## Integration with Git-Ape
 
 **Pre-deployment review:**
 ```
@@ -148,7 +148,7 @@ Agent: Loading deployment artifacts...
 
 ### 🔧 Operational Excellence: GOOD
 ✅ Tags applied (Environment, Project, ManagedBy)
-✅ Managed by AutoCloud (IaC tracked)
+✅ Managed by Git-Ape (IaC tracked)
 ⚠️ No diagnostic settings configured
 
 ## Overall WAF Score: 7.5/10
@@ -174,4 +174,4 @@ Agent: Loading deployment artifacts...
 - **Trade-offs explicit** — never hide costs of a recommendation
 - **Actionable** — every recommendation has a clear next step
 - **Read-only** — never modify resources, only advise
-- **Verify security findings** — every security claim must cite the exact ARM property or Azure configuration that proves it (see AutoCloud Security Analysis Integrity rules in autocloud.agent.md). Never report a control as "applied" without evidence from the template or live resource. Distinguish platform defaults from explicit configuration.
+- **Verify security findings** — every security claim must cite the exact ARM property or Azure configuration that proves it (see Git-Ape Security Analysis Integrity rules in git-ape.agent.md). Never report a control as "applied" without evidence from the template or live resource. Distinguish platform defaults from explicit configuration.

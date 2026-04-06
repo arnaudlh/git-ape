@@ -1,19 +1,19 @@
 ---
-name: autocloud-onboarding
-description: "Onboard a repository, Azure subscription(s), and user identity for AutoCloud CI/CD using a skill-driven CLI playbook. Use for first-time setup of OIDC, federated credentials, RBAC, GitHub environments, and required secrets."
+name: git-ape-onboarding
+description: "Onboard a repository, Azure subscription(s), and user identity for Git-Ape CI/CD using a skill-driven CLI playbook. Use for first-time setup of OIDC, federated credentials, RBAC, GitHub environments, and required secrets."
 argument-hint: "GitHub repo URL, subscription target(s), and onboarding mode (single or multi-environment)"
 user-invocable: true
 ---
 
-# AutoCloud Onboarding
+# Git-Ape Onboarding
 
-Use this skill to bootstrap a repository for AutoCloud deployments by executing the onboarding workflow directly from Copilot Chat.
+Use this skill to bootstrap a repository for Git-Ape deployments by executing the onboarding workflow directly from Copilot Chat.
 
 This skill is the source of truth for onboarding behavior. Do not depend on a standalone repository script for setup logic.
 
 ## When to Use
 
-- First-time setup of a repository for AutoCloud
+- First-time setup of a repository for Git-Ape
 - New subscription onboarding (single environment)
 - Multi-environment onboarding (dev/staging/prod across different subscriptions)
 - New user handoff where OIDC, RBAC, and GitHub environments must be created
@@ -54,19 +54,19 @@ gh auth login
 Invoke the skill from chat and let the agent gather missing parameters:
 
 ```text
-/autocloud-onboarding
+/git-ape-onboarding
 ```
 
 ### Parameterized single environment
 
 ```text
-/autocloud-onboarding onboard https://github.com/org/repo on subscription 00000000-0000-0000-0000-000000000000 with Contributor
+/git-ape-onboarding onboard https://github.com/org/repo on subscription 00000000-0000-0000-0000-000000000000 with Contributor
 ```
 
 ### Parameterized multi-environment
 
 ```text
-/autocloud-onboarding onboard https://github.com/org/repo with dev on 11111111-1111-1111-1111-111111111111 as Contributor, staging on 22222222-2222-2222-2222-222222222222 as Contributor, prod on 33333333-3333-3333-3333-333333333333 as Contributor+UserAccessAdministrator
+/git-ape-onboarding onboard https://github.com/org/repo with dev on 11111111-1111-1111-1111-111111111111 as Contributor, staging on 22222222-2222-2222-2222-222222222222 as Contributor, prod on 33333333-3333-3333-3333-333333333333 as Contributor+UserAccessAdministrator
 ```
 
 ## Command Playbook
@@ -128,7 +128,7 @@ The skill auto-detects this by calling:
 ```bash
 gh api "orgs/{org}/actions/oidc/customization/sub" --jq ".use_default"
 ```
-- Returns `true` → standard format: `repo:Azure/autocloud:pull_request`
+- Returns `true` → standard format: `repo:Azure/git-ape-private:pull_request`
 - Returns `false` → ID format: `repository_owner_id:6844498:repository_id:1184905165:pull_request`
 
 If OIDC login fails with `AADSTS700213: No matching federated identity record`, the
@@ -137,7 +137,7 @@ onboarding (the skill will auto-detect and use the correct format), or manually 
 existing credentials:
 ```bash
 # Get repo/owner IDs
-gh api repos/Azure/autocloud --jq '{repo_id: .id, owner_id: .owner.id}'
+gh api repos/Azure/git-ape-private --jq '{repo_id: .id, owner_id: .owner.id}'
 
 # Update each federated credential with correct subject
 az ad app federated-credential update \

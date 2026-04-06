@@ -153,7 +153,7 @@ az role definition create --role-definition '{
 | Resource Group | Full management | Contributor (scoped to RG) |
 | Monitoring | Read metrics | Monitoring Reader |
 
-## Integration with AutoCloud
+## Integration with Git-Ape
 
 When the template generator creates resources with managed identities, invoke this skill to:
 1. Identify what roles the managed identity needs

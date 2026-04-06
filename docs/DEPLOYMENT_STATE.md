@@ -4,7 +4,7 @@
 > EXPERIMENTAL ONLY: State formats, file schemas, and lifecycle behavior may change at any time.
 > Do **not** rely on this project for production deployment tracking, audit, or recovery.
 
-This document explains how AutoCloud persists deployment artifacts, manages state, and enables deployment reuse.
+This document explains how Git-Ape persists deployment artifacts, manages state, and enables deployment reuse.
 
 ## Overview
 
@@ -338,8 +338,8 @@ D. Upgrade subscription tier
 
 Stack Trace:
  at Microsoft.Azure.Management.WebSites.SitesOperationsExtensions.CreateOrUpdate
- at AutoCloud.ResourceDeployer.DeployResource
- at AutoCloud.Orchestrator.ExecuteDeployment
+ at Git-Ape.ResourceDeployer.DeployResource
+ at Git-Ape.Orchestrator.ExecuteDeployment
 
 Related Documentation:
 - https://learn.microsoft.com/azure/azure-resource-manager/management/request-limits-and-throttling
@@ -411,7 +411,7 @@ Checks:
 ### Simple Reuse
 
 ```
-User: @autocloud deploy the same Function App as last time
+User: @git-ape deploy the same Function App as last time
 
 Agent: Found previous deployment: deploy-20260218-163500
 
@@ -437,7 +437,7 @@ Proceed?
 ### Selective Reuse
 
 ```
-User: @autocloud use the storage configuration from deploy-20260218-143022 but for a different region
+User: @git-ape use the storage configuration from deploy-20260218-143022 but for a different region
 
 Agent: Loading storage configuration from deploy-20260218-143022...
 

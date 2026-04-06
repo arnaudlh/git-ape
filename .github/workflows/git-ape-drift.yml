@@ -1,8 +1,8 @@
-# AutoCloud Drift Detection Workflow
+# Git-Ape Drift Detection Workflow
 # Scheduled check for configuration drift between Azure resources and deployment state.
 # Runs every 6 hours, or manually. Creates a GitHub issue if critical drift is found.
 
-name: "AutoCloud: Drift Detection"
+name: "Git-Ape: Drift Detection"
 
 on:
   schedule:
@@ -90,7 +90,7 @@ jobs:
             if [[ "$RG_EXISTS" != "true" ]]; then
               CRITICAL_COUNT=$((CRITICAL_COUNT + 1))
               DRIFT_SUMMARY="${DRIFT_SUMMARY}\n🔴 **$DEPLOY_ID**: Resource group \`$RG_NAME\` no longer exists"
-              CRITICAL_DETAILS="${CRITICAL_DETAILS}\n### $DEPLOY_ID\nResource group \`$RG_NAME\` has been deleted outside of AutoCloud.\n"
+              CRITICAL_DETAILS="${CRITICAL_DETAILS}\n### $DEPLOY_ID\nResource group \`$RG_NAME\` has been deleted outside of Git-Ape.\n"
               continue
             fi
 
@@ -204,18 +204,18 @@ jobs:
             ### Remediation
 
             1. Review the drift details above
-            2. Use \`@autocloud\` to check drift: \`check drift on <deployment-id>\`
+            2. Use \`@git-ape\` to check drift: \`check drift on <deployment-id>\`
             3. Choose: **Accept** (update IaC), **Revert** (redeploy), or **Ignore** (mark as known)
 
             ---
-            *Automated drift detection by AutoCloud*`;
+            *Automated drift detection by Git-Ape*`;
 
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `🔴 Critical drift detected — ${critical} resource(s)`,
               body: body,
-              labels: ['drift', 'security', 'autocloud']
+              labels: ['drift', 'security', 'git-ape']
             });
 
       - name: Notify via Slack (optional)
@@ -235,13 +235,13 @@ jobs:
           curl -sf -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-type: application/json' \
             -d "{
-              \"text\": \"🔴 *AutoCloud Drift Alert*: $CRITICAL critical drift(s), $WARNING warning(s) detected.\",
+              \"text\": \"🔴 *Git-Ape Drift Alert*: $CRITICAL critical drift(s), $WARNING warning(s) detected.\",
               \"blocks\": [
                 {
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \"🔴 *AutoCloud: Critical Configuration Drift*\n\n• Critical: $CRITICAL\n• Warning: $WARNING\n\n<$RUN_URL|View details>\"
+                    \"text\": \"🔴 *Git-Ape: Critical Configuration Drift*\n\n• Critical: $CRITICAL\n• Warning: $WARNING\n\n<$RUN_URL|View details>\"
                   }
                 }
               ]

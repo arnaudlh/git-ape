@@ -18,8 +18,8 @@ Interview users to gather ALL necessary information for Azure resource deploymen
 
 ## Output Styling
 
-Follow the shared presentation style defined in AutoCloud:
-see [autocloud.agent.md](autocloud.agent.md).
+Follow the shared presentation style defined in Git-Ape:
+see [git-ape.agent.md](git-ape.agent.md).
 
 ## Execution Context Adaptation
 

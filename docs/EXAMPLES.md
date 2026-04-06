@@ -1,11 +1,11 @@
-# AutoCloud Examples
+# Git-Ape Examples
 
 This file keeps the longer usage examples out of the main README.
 
 ## Example 1: Deploy a Python Function App
 
 ```text
-User: @autocloud deploy a Python function app
+User: @git-ape deploy a Python function app
 
 Agent: I'll help you deploy an Azure Function App through the guided workflow.
 
@@ -40,7 +40,7 @@ Stage 4: Validate
 ## Example 2: Deploy a Web App with SQL Database
 
 ```text
-User: @autocloud deploy a web app with SQL database
+User: @git-ape deploy a web app with SQL database
 
 Agent: I will collect the app, plan, database, and connectivity requirements.
 
@@ -80,7 +80,7 @@ Agent: Running checks...
 
 ```text
 1. Configure Azure MCP and sign in with Azure CLI.
-2. Ask @autocloud to deploy a resource or stack.
+2. Ask @git-ape to deploy a resource or stack.
 3. Review the generated template, security output, and cost estimate.
 4. Confirm deployment.
 5. Review the saved artifacts under .azure/deployments/.

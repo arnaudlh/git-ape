@@ -220,7 +220,7 @@ Verified resource creation via Azure Resource Graph instead.
 
 **After Function App deployment:**
 ```
-@autocloud deploy a python function app
+@git-ape deploy a python function app
 [... deployment completes ...]
 /azure-integration-tester {deployment-outputs}
 ```

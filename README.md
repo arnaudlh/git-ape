@@ -1,16 +1,16 @@
-![AutoCloud APE logo](docs/APE.png)
+![Git-Ape APE logo](docs/APE.png)
 
-# AutoCloud
+# Git-Ape
 
 > [!WARNING]
-> EXPERIMENTAL PROJECT: AutoCloud is in active development and is not production-ready.
+> EXPERIMENTAL PROJECT: Git-Ape is in active development and is not production-ready.
 > Use it for local development, demos, sandbox subscriptions, and learning only.
 
-AutoCloud is a **platform engineering framework** built on GitHub Copilot. It provides a structured, multi-agent system for planning, validating, and deploying Azure infrastructure — with security gates, cost analysis, drift detection, and CI/CD pipeline integration built in.
+Git-Ape is a **platform engineering framework** built on GitHub Copilot. It provides a structured, multi-agent system for planning, validating, and deploying Azure infrastructure — with security gates, cost analysis, drift detection, and CI/CD pipeline integration built in.
 
 ## What It Is
 
-AutoCloud packages a set of Copilot agents and skills focused on Azure infrastructure work.
+Git-Ape packages a set of Copilot agents and skills focused on Azure infrastructure work.
 
 - It helps you gather deployment requirements.
 - It generates ARM templates and supporting deployment artifacts.
@@ -19,7 +19,7 @@ AutoCloud packages a set of Copilot agents and skills focused on Azure infrastru
 
 ## What It Does
 
-AutoCloud is designed around a simple deployment flow:
+Git-Ape is designed around a simple deployment flow:
 
 1. Collect the inputs for the resources you want.
 2. Generate and review the template, naming, cost, and security results.
@@ -43,8 +43,8 @@ Common tasks it supports:
 Recommended:
 
 ```bash
-copilot plugin marketplace add Azure/autocloud
-copilot plugin install Azure/autocloud
+copilot plugin marketplace add Azure/git-ape-private
+copilot plugin install Azure/git-ape-private
 ```
 
 Manual option:
@@ -65,13 +65,13 @@ Setup details are in [docs/AZURE_MCP_SETUP.md](docs/AZURE_MCP_SETUP.md).
 
 Start with one of these prompts in Copilot Chat:
 
-- `@autocloud deploy a Python function app`
-- `@autocloud deploy a web app with SQL database`
-- `@AutoCloud Onboarding set up this repo for Azure deployments`
+- `@git-ape deploy a Python function app`
+- `@git-ape deploy a web app with SQL database`
+- `@Git-Ape Onboarding set up this repo for Azure deployments`
 
 ### 4. Tear Down
-Use @autocloud to clean up afterwards by using:
-- `@autocloud destroy Python function app`
+Use @git-ape to clean up afterwards by using:
+- `@git-ape destroy Python function app`
 
 ## Where To Go Next
 
@@ -83,107 +83,171 @@ Use @autocloud to clean up afterwards by using:
 
 ## Architecture
 
-`@autocloud` is the central orchestrator. It coordinates a deployment pipeline of specialized subagents, enforces security gates, invokes skills, and manages deployment state. It does not deploy anything without explicit user confirmation.
+`@git-ape` is the central orchestrator. It coordinates a deployment pipeline of specialized subagents, enforces security gates, invokes skills, and manages deployment state. It does not deploy anything without explicit user confirmation.
 
+### Agent & Skill Orchestration
+
+```mermaid
+graph TD
+    GA["<b>@git-ape</b><br/>Main Orchestrator Agent<br/><i>Coordinates deployment stages, enforces security gates,<br/>delegates to subagents, invokes skills</i>"]
+
+    GA --> DP
+    GA --> AD
+    GA --> UT
+
+    subgraph DP ["Deployment Pipeline"]
+        RG["<b>Requirements Gatherer</b><br/>Interview user<br/>CAF naming<br/>SKU validation"]
+        TG["<b>Template Generator</b><br/>ARM template<br/>Architecture diagram<br/>Cost estimate"]
+        SG{{"Security Gate<br/>(BLOCKING)"}}
+        WR["WAF Review<br/>(Principal Architect)"]
+        UC{{"User Confirmation"}}
+        RD["<b>Resource Deployer</b><br/>az deployment<br/>Monitor & retry<br/>Integration tests"]
+
+        RG --> TG --> SG --> WR --> UC --> RD
+    end
+
+    subgraph AD ["Advisory"]
+        PA["<b>Principal Architect</b><br/>WAF 5-pillar review<br/>Trade-off analysis"]
+    end
+
+    subgraph UT ["Utility"]
+        IE["<b>IaC Exporter</b><br/>Import live resources"]
+        OB["<b>Git-Ape Onboarding</b><br/>OIDC + RBAC<br/>GitHub envs & secrets"]
+    end
 ```
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                              @autocloud                                       │
-│                        Main Orchestrator Agent                                │
-│                                                                               │
-│  Coordinates all deployment stages, enforces security gates & checkpoints,    │
-│  delegates to subagents, invokes skills, and manages deployment state.        │
-└───────────────────────────────┬───────────────────────────────────────────────┘
-                                │
-          ┌─────────────────────┼─────────────────────┐
-          │                     │                     │
-          ▼                     ▼                     ▼
-  ┌── Deployment ──┐   ┌── Advisory ──┐    ┌── Import ──────┐
-  │   Pipeline      │   │   Agents     │    │   Agent        │
-  │                 │   │              │    │                │
-  │  ┌───────────┐  │   │ ┌──────────┐ │    │ ┌────────────┐ │
-  │  │Requiremnts│  │   │ │Principal │ │    │ │  IaC       │ │
-  │  │ Gatherer  │  │   │ │Architect │ │    │ │ Exporter   │ │
-  │  └─────┬─────┘  │   │ │ (WAF 5P) │ │    │ │(Reverse-   │ │
-  │        │        │   │ └──────────┘ │    │ │ engineer)  │ │
-  │        ▼        │   └──────────────┘    │ └────────────┘ │
-  │  ┌───────────┐  │                       └────────────────┘
-  │  │ Template  │  │
-  │  │ Generator │  │
-  │  └─────┬─────┘  │
-  │        │        │
-  │    🔒 Security  │
-  │       Gate      │
-  │    (BLOCKING)   │
-  │        │        │
-  │        ▼        │
-  │  ┌───────────┐  │
-  │  │ Resource  │  │
-  │  │ Deployer  │  │
-  │  └───────────┘  │
-  └─────────────────┘
-```
-
-### Subagents
-
-| Subagent | Role |
-|----------|------|
-| **Requirements Gatherer** | Interviews user, collects params, validates CAF naming |
-| **Template Generator** | Generates ARM template, architecture diagram, security analysis |
-| **Resource Deployer** | Executes `az deployment sub create`, monitors progress, handles failures |
-| **Principal Architect** | WAF 5-pillar review (Security, Reliability, Perf, Cost, Ops) |
-| **IaC Exporter** | Reverse-engineers live Azure resources into ARM templates |
-| **AutoCloud Onboarding** | Bootstraps repo/subscription/user access via the onboarding skill |
 
 ### Skills
 
-| Skill | Purpose |
-|-------|----------|
-| `/azure-naming-research` | CAF abbreviation lookup, naming constraint validation |
-| `/azure-resource-availability` | Pre-deploy checks: SKU restrictions, version support, API compatibility, quota |
-| `/azure-security-analyzer` | Per-resource security assessment with blocking gate |
-| `/azure-deployment-preflight` | What-if analysis and permission checks before deploy |
-| `/azure-role-selector` | Least-privilege RBAC role recommendations |
-| `/azure-cost-estimator` | Real-time cost estimation via Azure Retail Prices API |
-| `/azure-drift-detector` | Detect config drift between live Azure and stored state |
-| `/azure-integration-tester` | Post-deployment health checks and endpoint tests |
-| `/azure-resource-visualizer` | Generate Mermaid diagrams from live Azure resources |
-| `/autocloud-onboarding` | Guided setup for OIDC, RBAC, environments, and secrets |
+Skills are invoked by agents at specific stages. Each skill handles one focused task.
+
+| Phase | Skill | Purpose |
+|-------|-------|---------|
+| **Pre-Deploy** | `/azure-naming-research` | CAF names & rules |
+| | `/azure-resource-availability` | SKU, quota, API checks |
+| | `/azure-security-analyzer` | Security best practices |
+| | `/azure-deployment-preflight` | What-if & permissions |
+| | `/azure-role-selector` | Least-privilege RBAC |
+| | `/azure-cost-estimator` | Retail pricing lookup |
+| **Post-Deploy** | `/azure-integration-tester` | Health & endpoint tests |
+| | `/azure-resource-visualizer` | Mermaid diagram from Azure |
+| **Operations** | `/azure-drift-detector` | Drift detection & fix |
+| | `/git-ape-onboarding` | OIDC, RBAC, env setup |
+
+### Deployment Flow
+
+```mermaid
+graph TD
+    U["User prompt:<br/><i>deploy a Python function app</i>"]
+
+    U --> S1
+
+    S1["<b>Stage 1: Requirements</b><br/>Requirements Gatherer interviews user"]
+    SK1["/azure-naming-research<br/>/azure-resource-availability"]
+
+    S1 -. skills .-> SK1
+    S1 --> S2
+
+    S2["<b>Stage 2: Template & Analysis</b><br/>Template Generator produces ARM +<br/>architecture + cost + security report"]
+    SK2["/azure-security-analyzer<br/>/azure-deployment-preflight<br/>/azure-cost-estimator<br/>/azure-role-selector"]
+
+    S2 -. skills .-> SK2
+    S2 --> GATE
+
+    GATE{{"Security Gate"}}
+    GATE -- "BLOCKED" --> FIX["Fix loop"] --> S2
+    GATE -- "PASSED" --> WAF
+
+    WAF["<b>Stage 2.75: WAF Review</b><br/>Principal Architect scores 5 pillars"]
+    WAF --> CONFIRM
+
+    CONFIRM{{"User confirms / PR approved"}}
+    CONFIRM --> S3
+
+    S3["<b>Stage 3: Deploy</b><br/>Resource Deployer runs az deployment"]
+    S3 --> S4
+
+    S4["<b>Stage 4: Validate</b><br/>Health checks, endpoint tests, diagram"]
+    SK4["/azure-integration-tester<br/>/azure-resource-visualizer"]
+
+    S4 -. skills .-> SK4
+```
 
 ### Execution Modes
 
-AutoCloud works in two modes — same agents and skills, different execution context.
+Git-Ape works in two modes — same agents and skills, different execution context.
 
+```mermaid
+graph LR
+    subgraph Interactive ["Interactive Mode (VS Code / Chat)"]
+        direction TB
+        I1["User ↔ @git-ape"]
+        I2["Real-time Q&A"]
+        I3["az login session"]
+        I4["Interactive confirmation"]
+        I5["Direct deployment"]
+        I6["@git-ape destroy {id}"]
+    end
+
+    subgraph Headless ["Headless Mode (Coding Agent / Actions)"]
+        direction TB
+        H1["Issue → Agent on branch"]
+        H2["Parse requirements from body"]
+        H3["OIDC auth via Actions"]
+        H4["Commit artifacts to PR"]
+        H5["git-ape-plan.yml (PR)"]
+        H6["git-ape-deploy.yml (merge)"]
+        H7["git-ape-destroy.yml (merge)"]
+    end
 ```
-  ┌─────────────────────────────┐     ┌──────────────────────────────────┐
-  │     Interactive Mode         │     │     Headless Mode                │
-  │     (VS Code / Chat)         │     │     (Coding Agent / Actions)     │
-  │                              │     │                                  │
-  │  User ◄──► AutoCloud Agent   │     │  Issue ──► Agent (on branch)     │
-  │  • Real-time Q&A             │     │  • Parse requirements from body  │
-  │  • az login session          │     │  • OIDC auth via Actions         │
-  │  • Interactive confirmation  │     │  • Commit artifacts to PR        │
-  │  • Direct deployment         │     │  • Workflows handle deploy       │
-  │                              │     │                                  │
-  │  Destroy:                    │     │  Deployed via:                   │
-  │  @autocloud destroy {id}     │     │  • autocloud-plan.yml (PR)       │
-  │                              │     │  • autocloud-deploy.yml (merge)  │
-  │                              │     │  • autocloud-destroy.yml (merge) │
-  └─────────────────────────────┘     └──────────────────────────────────┘
-```
 
-**Interactive** — you talk to `@autocloud` in VS Code Copilot Chat, authenticate via `az login`, and approve each step in real time.
+**Interactive** — you talk to `@git-ape` in VS Code Copilot Chat, authenticate via `az login`, and approve each step in real time.
 
-**Headless** — the Copilot Coding Agent picks up a GitHub issue, generates the template on a branch, opens a PR, and the CI/CD workflows (`autocloud-plan`, `autocloud-deploy`, `autocloud-destroy`) handle validation, deployment, and teardown via OIDC.
+**Headless** — the Copilot Coding Agent picks up a GitHub issue, generates the template on a branch, opens a PR, and the CI/CD workflows (`git-ape-plan`, `git-ape-deploy`, `git-ape-destroy`) handle validation, deployment, and teardown via OIDC.
+
+### CI/CD Workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `git-ape-plan.yml` | PR with template changes | Validate, what-if, post plan as PR comment |
+| `git-ape-deploy.yml` | Merge to main or `/deploy` comment | Execute ARM deployment |
+| `git-ape-destroy.yml` | Merge PR with `destroy-requested` | Delete resource group |
+| `git-ape-drift.yml` | Every 6 hours (cron) | Detect configuration drift |
+| `git-ape-ttl-reaper.yml` | Daily at 2 AM UTC | Destroy expired deployments |
+| `git-ape-verify.yml` | Manual dispatch | Verify OIDC, RBAC, pipeline health |
 
 ## Included Components
 
-AutoCloud is packaged as a Copilot CLI plugin with agents and skills under `.github/`:
+Git-Ape is packaged as a Copilot CLI plugin with agents and skills under `.github/`:
 
 ```
-plugin.json                   # Plugin manifest
+plugin.json                          # Plugin manifest
 .github/
-├── agents/                   # Subagent definitions (.agent.md)
-└── skills/                   # Skill definitions (SKILL.md + scripts)
+├── agents/
+│   ├── git-ape.agent.md             # Main orchestrator
+│   ├── git-ape-onboarding.agent.md  # Onboarding agent
+│   ├── azure-requirements-gatherer.agent.md
+│   ├── azure-template-generator.agent.md
+│   ├── azure-resource-deployer.agent.md
+│   ├── azure-principal-architect.agent.md
+│   └── azure-iac-exporter.agent.md
+├── skills/
+│   ├── git-ape-onboarding/          # OIDC, RBAC, env setup
+│   ├── azure-naming-research/       # CAF naming
+│   ├── azure-resource-availability/ # SKU & quota checks
+│   ├── azure-security-analyzer/     # Security assessment
+│   ├── azure-deployment-preflight/  # What-if analysis
+│   ├── azure-role-selector/         # RBAC recommendations
+│   ├── azure-cost-estimator/        # Cost estimation
+│   ├── azure-drift-detector/        # Drift detection
+│   ├── azure-integration-tester/    # Post-deploy tests
+│   └── azure-resource-visualizer/   # Architecture diagrams
+└── workflows/
+    ├── git-ape-plan.yml
+    ├── git-ape-deploy.yml
+    ├── git-ape-destroy.yml
+    ├── git-ape-drift.yml
+    ├── git-ape-ttl-reaper.yml
+    └── git-ape-verify.yml
 ```
 
 See [plugin.json](plugin.json) and [.github/plugin/marketplace.json](.github/plugin/marketplace.json) for packaging details.

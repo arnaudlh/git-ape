@@ -2,7 +2,7 @@
 
 **Deployment:** Azure Kubernetes Service (AKS) Cluster
 **Date:** 2026-03-31
-**Analyzed by:** AutoCloud Security Analyzer
+**Analyzed by:** Git-Ape Security Analyzer
 
 ## Security Gate: 🟢 PASSED
 

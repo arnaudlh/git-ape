@@ -82,7 +82,7 @@ az deployment sub validate \
 Run what-if to preview resource changes without deploying:
 
 ```bash
-# For subscription-level deployments (AutoCloud default)
+# For subscription-level deployments (Git-Ape default)
 az deployment sub what-if \
   --location {location} \
   --template-file "$TEMPLATE" \

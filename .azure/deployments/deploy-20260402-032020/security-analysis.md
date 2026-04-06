@@ -2,7 +2,7 @@
 
 **Deployment:** Virtual Network with Private Endpoints (Storage + Key Vault)
 **Date:** 2026-04-02
-**Analyzed by:** AutoCloud Security Analyzer
+**Analyzed by:** Git-Ape Security Analyzer
 
 ## Security Gate: 🟢 PASSED
 
