@@ -4,7 +4,7 @@ set -euo pipefail
 echo "==> Installing IaC security tools..."
 
 # Checkov — IaC security scanner (ARM, Bicep, Terraform)
-pip install --user checkov
+pip install --user --only-binary :all: checkov
 
 # PSRule for Azure — WAF-aligned rules for ARM/Bicep
 pwsh -Command "Install-Module -Name PSRule.Rules.Azure -Scope CurrentUser -Force"
