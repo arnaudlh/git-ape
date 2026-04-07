@@ -635,7 +635,7 @@ When invoked during a deployment workflow, save results to the deployment direct
 | `subscription` | Fix by assigning a policy at subscription scope (Part 2 — platform team) |
 | `none` | No action needed (already assigned or compliant) |
 
-## Integration with AutoCloud
+## Integration with Git-Ape
 
 - **Template Generator:** After `/azure-security-analyzer`, optionally invoke `/azure-policy-advisor` to recommend subscription-level policies that complement the template
 - **Onboarding:** After RBAC setup, the onboarding flow captures compliance preferences and adds them to `copilot-instructions.md` — this skill reads them automatically
