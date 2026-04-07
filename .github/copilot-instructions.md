@@ -134,7 +134,7 @@ Always include these tags on all resources:
 {
   "Environment": "dev|staging|prod",
   "Project": "project-name",
-  "ManagedBy": "autocloud-agent",
+  "ManagedBy": "git-ape-agent",
   "CreatedDate": "YYYY-MM-DD"
 }
 ```
@@ -161,9 +161,9 @@ Always include these tags on all resources:
 
 ### Pipeline Mode (GitHub Actions)
 
-AutoCloud provides three GitHub Actions workflows under `.github/workflows/`:
+Git-Ape provides three GitHub Actions workflows under `.github/workflows/`:
 
-#### `autocloud-plan.yml` — Validate & Preview
+#### `git-ape-plan.yml` — Validate & Preview
 
 **Triggers:** PR opened or updated with changes to `.azure/deployments/**/template.json`
 
@@ -182,7 +182,7 @@ AutoCloud provides three GitHub Actions workflows under `.github/workflows/`:
 - What-if analysis (resources to create/modify/delete)
 - Next steps (approve + merge to deploy, or `/deploy` to deploy early)
 
-#### `autocloud-deploy.yml` — Execute Deployment
+#### `git-ape-deploy.yml` — Execute Deployment
 
 **Triggers:**
 - Push to `main` with deployment file changes (PR merge)
@@ -204,7 +204,7 @@ AutoCloud provides three GitHub Actions workflows under `.github/workflows/`:
 - Deployments run sequentially (`max-parallel: 1`) to prevent conflicts
 - In-progress deployments are never cancelled (`cancel-in-progress: false`)
 
-#### `autocloud-destroy.yml` — Tear Down Resources
+#### `git-ape-destroy.yml` — Tear Down Resources
 
 **Triggers:**
 - Push to `main` with changes to `metadata.json` where status is `destroy-requested` (PR merge)
@@ -243,7 +243,7 @@ Issue: "Deploy a Container App in Southeast Asia, project myapp"
                     │ PR opened
                     ▼
     ┌───────────────────────────────┐
-    │  autocloud-plan.yml           │
+    │  git-ape-plan.yml           │
     │  1. Validate template         │
     │  2. Run what-if               │
     │  3. Post plan as PR comment   │
@@ -258,7 +258,7 @@ Issue: "Deploy a Container App in Southeast Asia, project myapp"
                     │
                     ▼
     ┌───────────────────────────────┐
-    │  autocloud-deploy.yml         │
+    │  git-ape-deploy.yml         │
     │  1. OIDC login                │
     │  2. Deploy ARM template       │
     │  3. Integration tests         │
@@ -271,7 +271,7 @@ Issue: "Deploy a Container App in Southeast Asia, project myapp"
     │  Teardown (when needed)       │
     │  PR: set metadata.json        │
     │  status → destroy-requested   │
-    │  Merge → autocloud-destroy    │
+    │  Merge → git-ape-destroy    │
     └───────────────────────────────┘
 ```
 
@@ -303,7 +303,7 @@ Create two GitHub environments for protection rules:
 
 ## Security Analysis Integrity
 
-**All security reports and assessments produced by AutoCloud agents and skills MUST be factually accurate and verifiable against the actual ARM template or Azure resource configuration.**
+**All security reports and assessments produced by Git-Ape agents and skills MUST be factually accurate and verifiable against the actual ARM template or Azure resource configuration.**
 
 ### Rules
 
@@ -329,7 +329,7 @@ The gate loops until PASSED or overridden — no shortcutting allowed.
 
 ## Azure Authentication
 
-AutoCloud supports multiple execution contexts. Always use the most secure auth method available.
+Git-Ape supports multiple execution contexts. Always use the most secure auth method available.
 
 ### Auth Method Priority
 
@@ -390,7 +390,7 @@ jobs:
 
 ### Copilot Coding Agent Considerations
 
-When AutoCloud runs inside the Copilot Coding Agent:
+When Git-Ape runs inside the Copilot Coding Agent:
 - The agent operates on a branch and creates a PR — it cannot interactively confirm with the user
 - Authentication must be pre-configured via OIDC in the Actions workflow
 - All deployment plans should be committed as files in the PR for review

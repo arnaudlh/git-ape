@@ -1,7 +1,7 @@
-# AutoCloud Setup Verification Workflow
+# Git-Ape Setup Verification Workflow
 # Run manually after onboarding to verify OIDC, RBAC, and GitHub configuration.
 
-name: "AutoCloud: Verify Setup"
+name: "Git-Ape: Verify Setup"
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   verify:
-    name: Verify AutoCloud configuration
+    name: Verify Git-Ape configuration
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -114,11 +114,11 @@ jobs:
           echo ""
 
           WORKFLOWS=(
-            "autocloud-plan.yml:AutoCloud: Plan"
-            "autocloud-deploy.yml:AutoCloud: Deploy"
-            "autocloud-destroy.yml:AutoCloud: Destroy"
-            "autocloud-drift.yml:AutoCloud: Drift Detection"
-            "autocloud-ttl-reaper.yml:AutoCloud: TTL Reaper"
+            "git-ape-plan.yml:Git-Ape: Plan"
+            "git-ape-deploy.yml:Git-Ape: Deploy"
+            "git-ape-destroy.yml:Git-Ape: Destroy"
+            "git-ape-drift.yml:Git-Ape: Drift Detection"
+            "git-ape-ttl-reaper.yml:Git-Ape: TTL Reaper"
           )
 
           for WF in "${WORKFLOWS[@]}"; do
@@ -140,9 +140,9 @@ jobs:
 
           if [[ "${{ steps.secrets.outputs.missing }}" != "0" ]]; then
             echo "❌ Setup incomplete — ${{ steps.secrets.outputs.missing }} secret(s) missing"
-            echo "   Run: @AutoCloud Onboarding or /autocloud-onboarding"
+            echo "   Run: @Git-Ape Onboarding or /git-ape-onboarding"
           else
-            echo "✅ AutoCloud setup verified successfully!"
+            echo "✅ Git-Ape setup verified successfully!"
             echo ""
             echo "Next steps:"
             echo "  1. Add a deployment under .azure/deployments/"

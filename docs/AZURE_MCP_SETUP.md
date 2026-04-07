@@ -5,7 +5,7 @@
 > Do **not** use this repository or its generated workflows for production Azure operations.
 > Review permissions and commands carefully before running them.
 
-This document explains how to configure the Azure MCP server to enable Azure deployment capabilities for the AutoCloud agent system.
+This document explains how to configure the Azure MCP server to enable Azure deployment capabilities for the Git-Ape agent system.
 
 ## Prerequisites
 
@@ -97,12 +97,12 @@ AZURE_TENANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 AZURE_DEFAULT_REGION=eastus
 
 # Default Resource Group (optional)
-AZURE_DEFAULT_RESOURCE_GROUP=rg-autocloud-dev-eastus
+AZURE_DEFAULT_RESOURCE_GROUP=rg-git-ape-dev-eastus
 ```
 
 ## Available Azure MCP Services
 
-The following services are used by the AutoCloud agents:
+The following services are used by the Git-Ape agents:
 
 ### Core Deployment Services
 
@@ -141,8 +141,8 @@ After configuration, verify the MCP server is working:
 
 1. Open VS Code
 2. Open GitHub Copilot Chat
-3. Type: `@autocloud`
-4. You should see "AutoCloud" in the agent picker
+3. Type: `@git-ape`
+4. You should see "Git-Ape" in the agent picker
 
 To test Azure MCP tools are accessible:
 
@@ -225,8 +225,8 @@ Consider creating a custom role:
 
 ```json
 {
-  "Name": "AutoCloud Deployer",
-  "Description": "Deploy Azure resources via AutoCloud agent",
+  "Name": "Git-Ape Deployer",
+  "Description": "Deploy Azure resources via Git-Ape agent",
   "Actions": [
     "Microsoft.Resources/deployments/*",
     "Microsoft.Resources/subscriptions/resourceGroups/*",
@@ -292,7 +292,7 @@ The agent will use whichever subscription is currently active in Azure CLI.
 
 After configuration:
 
-1. Test the agent with a simple deployment: `@autocloud deploy a resource group`
+1. Test the agent with a simple deployment: `@git-ape deploy a resource group`
 2. Review the [README.md](../../README.md) for example workflows
 3. Customize workspace instructions in [copilot-instructions.md](../copilot-instructions.md)
 4. Add your organization's naming conventions and policies

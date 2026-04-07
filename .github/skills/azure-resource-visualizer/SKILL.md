@@ -149,11 +149,11 @@ Generate a markdown file named `{rg-name}-architecture.md`:
 
 ### 6. Save or Display
 
-- **If called from AutoCloud workflow**: Save to `.azure/deployments/{id}/architecture-live.md`
+- **If called from Git-Ape workflow**: Save to `.azure/deployments/{id}/architecture-live.md`
 - **If called standalone**: Save to workspace root or `docs/` folder
 - Display summary to user with resource count and key relationships
 
-## Integration with AutoCloud
+## Integration with Git-Ape
 
 **Post-deployment visualization:**
 ```

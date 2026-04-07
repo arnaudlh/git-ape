@@ -1,8 +1,8 @@
-# AutoCloud Planning Workflow
+# Git-Ape Planning Workflow
 # Triggers when a PR adds/modifies deployment artifacts under .azure/deployments/
 # Validates the ARM template, runs what-if analysis, and posts the plan as a PR comment.
 
-name: "AutoCloud: Plan"
+name: "Git-Ape: Plan"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -22,7 +22,7 @@ permissions:
   security-events: write   # Upload SARIF results from template analyzer
 
 concurrency:
-  group: autocloud-plan-${{ github.event.pull_request.number }}
+  group: git-ape-plan-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -268,7 +268,7 @@ jobs:
           SARIF_UPLOAD_OUTCOME: ${{ steps.sarif_upload.outcome }}
           SECURITY_SCAN_OUTCOME: ${{ steps.security_scan.outcome }}
         run: |
-          mkdir -p .autocloud-plan
+          mkdir -p .git-ape-plan
           jq -n \
             --arg deploymentId "$DEPLOYMENT_ID" \
             --arg tagStatus "$TAG_STATUS" \
@@ -301,14 +301,14 @@ jobs:
               scanFindings: $scanFindings,
               sarifUploadOutcome: $sarifUploadOutcome,
               securityScanOutcome: $securityScanOutcome
-            }' > ".autocloud-plan/plan-local-${DEPLOYMENT_ID}.json"
+            }' > ".git-ape-plan/plan-local-${DEPLOYMENT_ID}.json"
 
       - name: Upload local summary artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: plan-local-${{ matrix.deployment_id }}
-          path: .autocloud-plan/plan-local-${{ matrix.deployment_id }}.json
+          path: .git-ape-plan/plan-local-${{ matrix.deployment_id }}.json
           if-no-files-found: error
           retention-days: 1
 
@@ -407,7 +407,7 @@ jobs:
           VALIDATION_ERROR: ${{ steps.validate.outputs.validation_error }}
           WHATIF_RESULT: ${{ steps.whatif.outputs.whatif_result }}
         run: |
-          mkdir -p .autocloud-plan
+          mkdir -p .git-ape-plan
           FINAL_VALIDATION_STATUS="$VALIDATION_STATUS"
           if [[ -z "$FINAL_VALIDATION_STATUS" ]]; then
             if [[ "$AZURE_LOGIN_OUTCOME" == "failure" ]]; then
@@ -429,14 +429,14 @@ jobs:
               validationStatus: $validationStatus,
               validationError: $validationError,
               whatifResult: $whatifResult
-            }' > ".autocloud-plan/plan-azure-${DEPLOYMENT_ID}.json"
+            }' > ".git-ape-plan/plan-azure-${DEPLOYMENT_ID}.json"
 
       - name: Upload Azure summary artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: plan-azure-${{ matrix.deployment_id }}
-          path: .autocloud-plan/plan-azure-${{ matrix.deployment_id }}.json
+          path: .git-ape-plan/plan-azure-${{ matrix.deployment_id }}.json
           if-no-files-found: error
           retention-days: 1
 
@@ -456,14 +456,14 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: plan-local-${{ matrix.deployment_id }}
-          path: .autocloud-plan/local
+          path: .git-ape-plan/local
 
       - name: Download Azure summary artifact
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           name: plan-azure-${{ matrix.deployment_id }}
-          path: .autocloud-plan/azure
+          path: .git-ape-plan/azure
 
       - name: Post plan as PR comment
         uses: actions/github-script@v8
@@ -473,7 +473,7 @@ jobs:
             const deploymentId = '${{ matrix.deployment_id }}';
 
             function loadSummary(kind) {
-              const path = `.autocloud-plan/${kind}/plan-${kind}-${deploymentId}.json`;
+              const path = `.git-ape-plan/${kind}/plan-${kind}-${deploymentId}.json`;
               if (!fs.existsSync(path)) {
                 return null;
               }
@@ -502,7 +502,7 @@ jobs:
             const hasArchitecture = local.hasArchitecture === 'true';
             const architectureContent = local.architectureContent || '';
 
-            let comment = `## AutoCloud Plan: \`${deploymentId}\`\n\n`;
+            let comment = `## Git-Ape Plan: \`${deploymentId}\`\n\n`;
 
             if (validationStatus === 'passed') {
               comment += `### ✅ Template Validation: Passed\n\n`;
@@ -579,7 +579,7 @@ jobs:
               issue_number: context.issue.number,
             });
 
-            const marker = `<!-- autocloud-plan:${deploymentId} -->`;
+            const marker = `<!-- git-ape-plan:${deploymentId} -->`;
             comment = marker + '\n' + comment;
             const existing = comments.find(c => c.body.includes(marker));
 

@@ -2,7 +2,7 @@
 
 **Deployment:** Cheapest VM in France Central
 **Date:** 2026-03-18
-**Analyzed by:** AutoCloud Security Analyzer
+**Analyzed by:** Git-Ape Security Analyzer
 
 ## Security Gate: 🟢 PASSED (with advisory findings)
 

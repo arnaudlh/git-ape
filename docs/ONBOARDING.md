@@ -1,13 +1,13 @@
-# AutoCloud Onboarding Guide
+# Git-Ape Onboarding Guide
 
 > [!WARNING]
 > EXPERIMENTAL ONLY: This onboarding flow is provided for testing and evaluation.
-> Do **not** use AutoCloud in production environments.
+> Do **not** use Git-Ape in production environments.
 > Validate all generated configuration manually before any real deployment.
 
-Set up a GitHub repository to use AutoCloud's CI/CD pipelines for Azure deployments. This guide covers Entra ID (Azure AD) configuration, OIDC federation, RBAC, and GitHub repository setup.
+Set up a GitHub repository to use Git-Ape's CI/CD pipelines for Azure deployments. This guide covers Entra ID (Azure AD) configuration, OIDC federation, RBAC, and GitHub repository setup.
 
-AutoCloud supports two onboarding modes:
+Git-Ape supports two onboarding modes:
 
 | Mode | Use case | GitHub Environments | Secrets scope |
 |------|----------|-------------------|---------------|
@@ -19,20 +19,20 @@ AutoCloud supports two onboarding modes:
 You can run onboarding from Copilot Chat with:
 
 ```text
-@AutoCloud Onboarding onboard this repository
+@Git-Ape Onboarding onboard this repository
 ```
 
 or directly invoke the skill:
 
 ```text
-/autocloud-onboarding
+/git-ape-onboarding
 ```
 
 Both paths execute the same onboarding playbook through Copilot Chat.
 
 The skill-driven onboarding flow will gather or use:
 1. **GitHub repository URL** — e.g. `https://github.com/your-org/your-repo`
-2. **Entra ID App Registration name** — e.g. `sp-autocloud-your-repo`
+2. **Entra ID App Registration name** — e.g. `sp-git-ape-your-repo`
 3. **Single or multi-environment mode** — choose whether to deploy to one or multiple Azure subscriptions
 4. **Azure subscription(s)** — defaults to your current `az` subscription
 5. **RBAC role(s)** — Contributor (default) or Contributor + User Access Administrator
@@ -42,13 +42,13 @@ The skill-driven onboarding flow will gather or use:
 **Single environment:**
 
 ```text
-/autocloud-onboarding onboard https://github.com/your-org/your-repo on subscription 00000000-0000-0000-0000-000000000000 with Contributor
+/git-ape-onboarding onboard https://github.com/your-org/your-repo on subscription 00000000-0000-0000-0000-000000000000 with Contributor
 ```
 
 **Multi-environment:**
 
 ```text
-/autocloud-onboarding onboard https://github.com/your-org/your-repo with dev on 11111111-1111-1111-1111-111111111111 as Contributor, staging on 22222222-2222-2222-2222-222222222222 as Contributor, prod on 33333333-3333-3333-3333-333333333333 as Contributor+UserAccessAdministrator
+/git-ape-onboarding onboard https://github.com/your-org/your-repo with dev on 11111111-1111-1111-1111-111111111111 as Contributor, staging on 22222222-2222-2222-2222-222222222222 as Contributor, prod on 33333333-3333-3333-3333-333333333333 as Contributor+UserAccessAdministrator
 ```
 
 Each multi-environment entry creates:
@@ -125,7 +125,7 @@ This creates the identity that GitHub Actions will use to authenticate with Azur
 
 ```bash
 # Choose a name for your app registration
-SP_NAME="sp-autocloud-your-repo"
+SP_NAME="sp-git-ape-your-repo"
 
 # Create the app registration
 CLIENT_ID=$(az ad app create --display-name "$SP_NAME" --query appId -o tsv)
@@ -495,21 +495,21 @@ In multi-environment mode, you might want:
 - `azure-deploy-staging` — optional reviewer
 - `azure-deploy-prod` — required reviewer (gate for production)
 
-### Step 5: Copy AutoCloud Workflows
+### Step 5: Copy Git-Ape Workflows
 
 Copy the workflow files to your repository:
 
 ```bash
-# Clone the autocloud repo if you haven't
-git clone https://github.com/your-org/autocloud.git /tmp/autocloud
+# Clone the git-ape repo if you haven't
+git clone https://github.com/your-org/git-ape.git /tmp/git-ape
 
 # Copy workflows to your repo
-cp /tmp/autocloud/.github/workflows/autocloud-*.yml your-repo/.github/workflows/
+cp /tmp/git-ape/.github/workflows/git-ape-*.yml your-repo/.github/workflows/
 
 # Commit and push
 cd your-repo
 git add .github/workflows/
-git commit -m "feat: add AutoCloud deployment workflows"
+git commit -m "feat: add Git-Ape deployment workflows"
 git push
 ```
 
@@ -517,12 +517,12 @@ The following workflows will be added:
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `autocloud-plan.yml` | PR with template changes | Validate, security scan, what-if, cost estimate |
-| `autocloud-deploy.yml` | Merge to main or `/deploy` comment | Execute ARM deployment |
-| `autocloud-destroy.yml` | Merge PR with `destroy-requested` status | Delete resource group |
-| `autocloud-drift.yml` | Every 6 hours (cron) | Detect configuration drift |
-| `autocloud-ttl-reaper.yml` | Daily at 2 AM UTC | Destroy expired deployments |
-| `autocloud-verify.yml` | Manual dispatch | Verify OIDC, RBAC, and pipeline health |
+| `git-ape-plan.yml` | PR with template changes | Validate, security scan, what-if, cost estimate |
+| `git-ape-deploy.yml` | Merge to main or `/deploy` comment | Execute ARM deployment |
+| `git-ape-destroy.yml` | Merge PR with `destroy-requested` status | Delete resource group |
+| `git-ape-drift.yml` | Every 6 hours (cron) | Detect configuration drift |
+| `git-ape-ttl-reaper.yml` | Daily at 2 AM UTC | Destroy expired deployments |
+| `git-ape-verify.yml` | Manual dispatch | Verify OIDC, RBAC, and pipeline health |
 
 ### Step 6: Verify Setup
 
@@ -554,14 +554,14 @@ cat > .azure/deployments/deploy-test/parameters.json <<'EOF'
 EOF
 
 # Open a PR
-git checkout -b test/autocloud-onboarding
+git checkout -b test/git-ape-onboarding
 git add .azure/deployments/deploy-test/
-git commit -m "test: verify autocloud pipeline"
-git push -u origin test/autocloud-onboarding
-gh pr create --title "Test: AutoCloud onboarding" --body "Verify the OIDC pipeline works end-to-end."
+git commit -m "test: verify git-ape pipeline"
+git push -u origin test/git-ape-onboarding
+gh pr create --title "Test: Git-Ape onboarding" --body "Verify the OIDC pipeline works end-to-end."
 ```
 
-If the PR triggers the `AutoCloud: Plan` workflow and it succeeds, your setup is complete.
+If the PR triggers the `Git-Ape: Plan` workflow and it succeeds, your setup is complete.
 
 ---
 
@@ -632,12 +632,12 @@ Environment creation requires admin access to the repository. Ask a repo admin t
 │             │                          │                  │          │
 │  Workflows: │                          │                  │          │
 │  ┌──────────┴──────────────────────────┴──────────────────┴────────┐ │
-│  │  autocloud-plan.yml     → OIDC token (PR subject)               │ │
-│  │  autocloud-deploy.yml   → OIDC token (main / azure-deploy env)  │ │
-│  │  autocloud-destroy.yml  → OIDC token (azure-destroy env)        │ │
-│  │  autocloud-drift.yml    → OIDC token (main subject)             │ │
-│  │  autocloud-ttl-reaper.yml → OIDC token (azure-destroy env)      │ │
-│  │  autocloud-verify.yml   → OIDC token (workflow_dispatch)        │ │
+│  │  git-ape-plan.yml     → OIDC token (PR subject)               │ │
+│  │  git-ape-deploy.yml   → OIDC token (main / azure-deploy env)  │ │
+│  │  git-ape-destroy.yml  → OIDC token (azure-destroy env)        │ │
+│  │  git-ape-drift.yml    → OIDC token (main subject)             │ │
+│  │  git-ape-ttl-reaper.yml → OIDC token (azure-destroy env)      │ │
+│  │  git-ape-verify.yml   → OIDC token (workflow_dispatch)        │ │
 │  └──────────┬──────────────────────────────────────────────────────┘ │
 └─────────────┼────────────────────────────────────────────────────────┘
               │ OIDC token exchange
@@ -645,7 +645,7 @@ Environment creation requires admin access to the repository. Ask a repo admin t
 ┌──────────────────────────────────────────────────────────────────────┐
 │                         Entra ID (Azure AD)                          │
 │                                                                      │
-│  App Registration: sp-autocloud-{repo}                               │
+│  App Registration: sp-git-ape-{repo}                               │
 │  ┌────────────────────────────────────────────┐                      │
 │  │ Client ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxx  │                      │
 │  │                                            │                      │
@@ -701,7 +701,7 @@ Environment creation requires admin access to the repository. Ask a repo admin t
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │                            Entra ID (Azure AD)                                    │
 │                                                                                   │
-│  App Registration: sp-autocloud-{repo}                                            │
+│  App Registration: sp-git-ape-{repo}                                            │
 │  ┌────────────────────────────────────────────────────────┐                       │
 │  │ Federated Credentials:                                 │                       │
 │  │   • repo:org/repo:ref:refs/heads/main                  │                       │
@@ -754,7 +754,7 @@ When using multi-environment mode:
 With multi-environment mode, update your deploy workflow to select the correct environment:
 
 ```yaml
-# In autocloud-deploy.yml, change the environment field to be dynamic:
+# In git-ape-deploy.yml, change the environment field to be dynamic:
 deploy:
   environment: azure-deploy-${{ steps.params.outputs.environment }}
   # This resolves to azure-deploy-dev, azure-deploy-staging, or azure-deploy-prod

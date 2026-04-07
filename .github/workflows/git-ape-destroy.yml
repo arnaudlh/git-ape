@@ -1,10 +1,10 @@
-# AutoCloud Destroy Workflow
+# Git-Ape Destroy Workflow
 # Triggers on:
 #   1. PR merge to main that sets metadata.json status to "destroy-requested"
 #   2. Manual workflow dispatch (emergency fallback)
 # Deletes the Azure resource group for a tracked deployment.
 
-name: "AutoCloud: Destroy"
+name: "Git-Ape: Destroy"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -34,7 +34,7 @@ permissions:
   pull-requests: write   # Post result on merged PR
 
 concurrency:
-  group: autocloud-destroy-${{ github.sha }}
+  group: git-ape-destroy-${{ github.sha }}
   cancel-in-progress: false   # Never cancel in-progress destroys
 
 jobs:
@@ -235,7 +235,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$DEPLOY_DIR/state.json" "$DEPLOY_DIR/metadata.json"
-          git diff --cached --quiet || git commit -m "autocloud: mark ${{ matrix.deployment_id }} as $STATUS"
+          git diff --cached --quiet || git commit -m "git-ape: mark ${{ matrix.deployment_id }} as $STATUS"
           git push || echo "::warning::Could not push state update"
 
       - name: Post summary
@@ -250,7 +250,7 @@ jobs:
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           echo "============================================"
-          echo "AutoCloud Destroy Summary"
+          echo "Git-Ape Destroy Summary"
           echo "============================================"
           echo "Deployment:     $DEPLOY_ID"
           echo "Resource Group: $RG"
@@ -295,7 +295,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \"$EMOJI *AutoCloud Destroy: $DEPLOY_ID*\\n\\n$MSG\\n\\nTriggered by: ${{ github.actor }}\\n<$RUN_URL|View logs>\"
+                    \"text\": \"$EMOJI *Git-Ape Destroy: $DEPLOY_ID*\\n\\n$MSG\\n\\nTriggered by: ${{ github.actor }}\\n<$RUN_URL|View logs>\"
                   }
                 }
               ]

@@ -1,8 +1,8 @@
-# AutoCloud TTL Reaper Workflow
+# Git-Ape TTL Reaper Workflow
 # Automatically destroys expired deployments based on TTL metadata.
 # Runs daily. Deployments opt-in by having "ttl" in requirements.json or state.json.
 
-name: "AutoCloud: TTL Reaper"
+name: "Git-Ape: TTL Reaper"
 
 on:
   schedule:
@@ -186,7 +186,7 @@ jobs:
               repo: context.repo.repo,
               title: `🕐 TTL Reaper: ${destroyed} destroyed, ${expiring} expiring soon`,
               body: body,
-              labels: ['ttl', 'autocloud']
+              labels: ['ttl', 'git-ape']
             });
 
       - name: Notify via Slack
@@ -204,13 +204,13 @@ jobs:
           curl -sf -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-type: application/json' \
             -d "{
-              \"text\": \"🕐 AutoCloud TTL Reaper: $DESTROYED deployment(s) destroyed, $EXPIRING expiring soon\",
+              \"text\": \"🕐 Git-Ape TTL Reaper: $DESTROYED deployment(s) destroyed, $EXPIRING expiring soon\",
               \"blocks\": [
                 {
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \"🕐 *AutoCloud TTL Reaper*\n\n• Destroyed: $DESTROYED\n• Expiring soon: $EXPIRING\n\n<$RUN_URL|View details>\"
+                    \"text\": \"🕐 *Git-Ape TTL Reaper*\n\n• Destroyed: $DESTROYED\n• Expiring soon: $EXPIRING\n\n<$RUN_URL|View details>\"
                   }
                 }
               ]

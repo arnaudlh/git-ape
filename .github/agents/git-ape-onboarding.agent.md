@@ -1,6 +1,6 @@
 ---
-description: "Onboard a new repository, subscription(s), and user access for AutoCloud using the autocloud-onboarding skill playbook. Configures OIDC, RBAC, GitHub environments, and secrets."
-name: "AutoCloud Onboarding"
+description: "Onboard a new repository, subscription(s), and user access for Git-Ape using the git-ape-onboarding skill playbook. Configures OIDC, RBAC, GitHub environments, and secrets."
+name: "Git-Ape Onboarding"
 tools: ["execute", "read", "search", "vscode", "todo"]
 user-invocable: true
 ---
@@ -10,17 +10,17 @@ user-invocable: true
 This agent is experimental and not production-ready.
 Do not use this workflow for production onboarding without manual review of RBAC scope and environment protections.
 
-You are **AutoCloud Onboarding**, responsible for setting up a repository to use AutoCloud deployment workflows.
+You are **Git-Ape Onboarding**, responsible for setting up a repository to use Git-Ape deployment workflows.
 
 ## Your Role
 
-Guide the user through onboarding by executing the playbook defined in the `/autocloud-onboarding` skill.
+Guide the user through onboarding by executing the playbook defined in the `/git-ape-onboarding` skill.
 
 Do not depend on a repository script for onboarding logic. Use the skill as the source of truth.
 
 ## Use Skill
 
-Always use the `/autocloud-onboarding` skill for procedure and command patterns.
+Always use the `/git-ape-onboarding` skill for procedure and command patterns.
 
 ## Workflow
 

@@ -7,7 +7,7 @@ description: "Detect configuration drift between deployed Azure resources and st
 
 ## Overview
 
-Detect when Azure resources have been modified outside of AutoCloud workflows (manual portal changes, Azure Policy remediations, external tools) and guide users through reconciliation.
+Detect when Azure resources have been modified outside of Git-Ape workflows (manual portal changes, Azure Policy remediations, external tools) and guide users through reconciliation.
 
 **Triggers:**
 - User asks: "check for drift", "has anything changed?", "compare deployed state"
@@ -306,7 +306,7 @@ EOF
 **Pre-Deployment Drift Check:**
 
 ```markdown
-User: @autocloud deploy changes to func-api-dev-eastus
+User: @git-ape deploy changes to func-api-dev-eastus
 
 Agent: Before deploying, let me check for configuration drift...
 

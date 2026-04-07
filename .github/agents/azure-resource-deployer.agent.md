@@ -18,8 +18,8 @@ Execute ARM template deployments to Azure subscriptions, monitor real-time progr
 
 ## Output Styling
 
-Follow the shared presentation style defined in AutoCloud:
-see [autocloud.agent.md](autocloud.agent.md).
+Follow the shared presentation style defined in Git-Ape:
+see [git-ape.agent.md](git-ape.agent.md).
 
 Use the shared progress bar and status line patterns for polling updates and summaries.
 
@@ -101,7 +101,7 @@ Use Azure MCP `deploy` service or Azure CLI:
 **Option A: Azure MCP (Preferred)**
 ```
 Use mcp_azure_mcp_search with "deploy" intent to execute template deployment
-- Set deployment name: "autocloud-{timestamp}"
+- Set deployment name: "git-ape-{timestamp}"
 - Set mode: "Incremental" (default) or "Complete" (if user specified)
 - Monitor deployment with progress updates
 ```
@@ -243,7 +243,7 @@ Provide a comprehensive summary:
 
 **Cleanup:**
 To destroy this deployment and delete all its resources:
-> `@autocloud destroy deployment {deployment-id}`
+> `@git-ape destroy deployment {deployment-id}`
 >
 > Or via GitHub: create a PR that sets `metadata.json` status to `destroy-requested`, then merge after approval
 

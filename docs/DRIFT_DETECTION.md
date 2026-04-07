@@ -14,7 +14,7 @@ Configuration drift occurs when Azure resources are modified outside the Infrast
 - **Automated Tooling** - Third-party tools or scripts make changes
 - **Emergency Hotfixes** - Production incidents requiring immediate changes
 
-AutoCloud's drift detection system helps you:
+Git-Ape's drift detection system helps you:
 1. **Detect** configuration differences between Azure and your IaC
 2. **Analyze** the severity and impact of changes
 3. **Reconcile** by accepting drift (update IaC) or reverting drift (redeploy)
@@ -26,7 +26,7 @@ AutoCloud's drift detection system helps you:
 
 **Agent Workflow:**
 ```
-User: @autocloud check for drift on deploy-20260218-143022
+User: @git-ape check for drift on deploy-20260218-143022
 
 Agent: Running drift detection...
 
@@ -338,7 +338,7 @@ Restore original configuration by redeploying:
 Use the agent for interactive property-by-property reconciliation:
 
 ```
-User: @autocloud review drift for deploy-20260218-143022
+User: @git-ape review drift for deploy-20260218-143022
 
 Agent: Found 3 drifts. Let's review each one:
 
@@ -478,7 +478,7 @@ For local or self-hosted runners:
 
 ```bash
 # Add to crontab
-0 */6 * * * cd /path/to/autocloud && .github/skills/azure-drift-detector/scripts/drift-check-all.sh --format json > /var/log/drift-$(date +\%Y\%m\%d).json
+0 */6 * * * cd /path/to/git-ape && .github/skills/azure-drift-detector/scripts/drift-check-all.sh --format json > /var/log/drift-$(date +\%Y\%m\%d).json
 ```
 
 ### Azure Monitor Alert Rule
@@ -530,7 +530,7 @@ az monitor activity-log alert create \
 
 **Resolution:**
 ```
-User: @autocloud what changed in production?
+User: @git-ape what changed in production?
 
 Agent: Found drift in deploy-20260215-093022 (production):
 - Runtime changed from Python to .NET

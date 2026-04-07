@@ -1,10 +1,10 @@
-# AutoCloud Deploy Workflow
+# Git-Ape Deploy Workflow
 # Triggers on:
 #   1. PR merge to main (when deployment files are included)
 #   2. `/deploy` comment on an approved PR (deploys from branch before merge)
 # Runs the actual ARM deployment, captures outputs, and runs integration tests.
 
-name: "AutoCloud: Deploy"
+name: "Git-Ape: Deploy"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -30,7 +30,7 @@ permissions:
   actions: read            # Required by codeql-action/upload-sarif to read workflow run context
 
 concurrency:
-  group: autocloud-deploy-${{ github.event_name == 'push' && github.sha || github.event.comment.id }}
+  group: git-ape-deploy-${{ github.event_name == 'push' && github.sha || github.event.comment.id }}
   cancel-in-progress: false   # Never cancel in-progress deployments
 
 jobs:
@@ -399,7 +399,7 @@ jobs:
           cp /tmp/metadata.json "$DEPLOY_DIR/metadata.json" 2>/dev/null || true
 
           git add "$DEPLOY_DIR/state.json" "$DEPLOY_DIR/metadata.json"
-          git diff --cached --quiet || git commit -m "autocloud: update state for ${{ matrix.deployment_id }} [$STATUS]"
+          git diff --cached --quiet || git commit -m "git-ape: update state for ${{ matrix.deployment_id }} [$STATUS]"
           git push || echo "::warning::Could not push state update to main"
 
       - name: Post deployment result
@@ -415,7 +415,7 @@ jobs:
             const testEndpoints = `${{ steps.tests.outputs.test_endpoints }}`;
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
 
-            let comment = `## AutoCloud Deploy: \`${deploymentId}\`\n\n`;
+            let comment = `## Git-Ape Deploy: \`${deploymentId}\`\n\n`;
 
             if (status === 'succeeded') {
               comment += `### ✅ Deployment Succeeded\n\n`;
@@ -447,7 +447,7 @@ jobs:
               }
             }
 
-            const marker = `<!-- autocloud-deploy:${deploymentId} -->`;
+            const marker = `<!-- git-ape-deploy:${deploymentId} -->`;
             comment = marker + '\n' + comment;
 
             await github.rest.issues.createComment({
@@ -487,7 +487,7 @@ jobs:
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \"$EMOJI *AutoCloud Deploy: $DEPLOY_ID*\\n\\n$MSG\\n\\nTriggered by: ${{ github.actor }}\\n<$RUN_URL|View logs>\"
+                    \"text\": \"$EMOJI *Git-Ape Deploy: $DEPLOY_ID*\\n\\n$MSG\\n\\nTriggered by: ${{ github.actor }}\\n<$RUN_URL|View logs>\"
                   }
                 }
               ]
