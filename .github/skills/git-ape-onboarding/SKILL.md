@@ -103,7 +103,7 @@ After RBAC and environment setup, ask the user about compliance requirements and
 
 1. **Ask compliance framework:**
    ```
-   Which compliance framework should AutoCloud use for policy recommendations?
+   Which compliance framework should Git-Ape use for policy recommendations?
    - General Azure best practices (recommended)
    - CIS Azure Foundations v3.0
    - NIST SP 800-53 Rev 5
