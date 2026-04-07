@@ -1,7 +1,7 @@
 ---
-description: "Recommend Azure Policy assignments for ARM template resources using Microsoft Learn documentation. Produces per-resource policy recommendations with built-in definition IDs and implementation options."
+description: "Assess Azure Policy compliance for ARM template resources. Queries existing subscription assignments and unassigned custom/built-in definitions, cross-references with Microsoft Learn recommendations. Produces split report: Part 1 (template improvements) and Part 2 (subscription-level policy assignments)."
 name: "Azure Policy Advisor"
-tools: ["read", "search", "microsoft-docs/*"]
+tools: ["read", "search", "microsoftdocs/mcp/*", "azure-mcp/cloudarchitect", "azure-mcp/extension_azqr", "azure-mcp/get_bestpractices", "execute/getTerminalOutput", "execute/awaitTerminal", "execute/createAndRunTask", "execute/runInTerminal"]
 user-invocable: true
 ---
 
@@ -29,10 +29,15 @@ Always use the `/azure-policy-advisor` skill for procedure, classification tiers
 2. Read compliance preferences from `copilot-instructions.md` (the `## Compliance & Azure Policy` section).
 3. If an ARM template is provided, parse resource types. Otherwise, ask what resource types to assess.
 4. Execute the `/azure-policy-advisor` skill procedure:
-   - Query Microsoft Learn for current built-in policy definitions per resource type
-   - Classify recommendations by severity (Critical/High/Medium/Low)
-   - Cross-reference against template configuration
-5. Present the policy assessment report with implementation options (ARM template or Azure CLI).
+   - **Step 2:** Query existing policy assignments in the Azure subscription (via `az policy assignment list`)
+   - **Step 3:** Discover unassigned custom/built-in policy definitions (via `az policy definition list`)
+   - **Step 4:** Query Microsoft Learn for current built-in policy definitions per resource type
+   - **Step 5:** Classify and prioritize — cross-reference template config, existing assignments, and custom definitions
+   - **Step 6:** Generate split report:
+     - **Part 1: Template Improvements** — gaps fixable by modifying the ARM template (developer action)
+     - **Part 2: Subscription-Level Actions** — policy/initiative assignments (platform team action)
+   - **Step 7:** Provide implementation options for both tracks
+5. Present the policy assessment report with the split Part 1 / Part 2 format.
 6. Save `policy-assessment.md` and `policy-recommendations.json` to the deployment directory if one exists.
 
 ## Output Requirements

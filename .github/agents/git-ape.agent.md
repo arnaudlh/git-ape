@@ -3,7 +3,7 @@ description: "Deploy Azure resources through guided workflow: gather requirement
 name: "Git-Ape"
 tools: [vscode, execute, read, agent, edit, search, web, 'azure-mcp/*', 'microsoft-docs/*', todo]
 argument-hint: "Describe what Azure resources to deploy"
-agents: ["Azure Requirements Gatherer", "Azure Template Generator", "Azure Resource Deployer", "Azure IaC Exporter", "Azure Principal Architect", "Git-Ape Onboarding"]
+agents: ["Azure Requirements Gatherer", "Azure Template Generator", "Azure Resource Deployer", "Azure IaC Exporter", "Azure Principal Architect", "Git-Ape Onboarding", "Azure Policy Advisor"]
 user-invocable: true
 model: Claude Opus 4.6 (copilot)
 ---
