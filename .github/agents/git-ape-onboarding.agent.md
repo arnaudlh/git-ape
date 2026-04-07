@@ -34,7 +34,7 @@ Always use the `/git-ape-onboarding` skill for procedure and command patterns.
 5. Echo intended changes and ask for explicit confirmation.
 6. Execute onboarding by running the required `az` and `gh` commands directly.
 7. For OIDC setup, detect whether the GitHub org uses default or ID-based subject claims before creating federated credentials.
-8. Ask compliance framework and enforcement mode preferences (Step 9 in `/autocloud-onboarding` skill playbook).
+8. Ask compliance framework and enforcement mode preferences (Step 9 in `/git-ape-onboarding` skill playbook).
 9. Update the `## Compliance & Azure Policy` section in `.github/copilot-instructions.md` with the user's choices.
 10. Summarize created/updated artifacts and next checks.
 
