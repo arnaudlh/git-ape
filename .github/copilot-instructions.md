@@ -145,6 +145,7 @@ Always include these tags on all resources:
 - Use `outputs` section to return resource IDs and endpoints
 - Apply Azure best practices via `bestpractices` service validation
 - Include resource health monitoring configurations
+- **Always use `/azure-rest-api-reference` to look up resource properties and API versions before writing or modifying ARM template resources** — never rely on memorized property names or schemas
 - **Subscription-level templates** (`subscriptionDeploymentTemplate.json`) must use nested deployments with `"expressionEvaluationOptions": { "scope": "inner" }` — without this, `reference()` and `resourceId()` resolve at subscription scope, causing `ResourceNotFound` errors at deploy time
 - All `reference()` calls inside nested templates must include explicit API versions (e.g., `reference(resourceId(...), '2024-03-01')`)
 - Pass all parent-scope values (parameters, variables) as explicit parameters to nested templates — never reference parent variables directly from inner-scope templates
@@ -294,6 +295,19 @@ Create two GitHub environments for protection rules:
 - For Function Apps, use `AzureWebJobsStorage__accountName` (identity-based) instead of `AzureWebJobsStorage` (key-based)
 - Set `allowSharedKeyAccess: false` on storage accounts when all consumers use managed identity
 - Include RBAC role assignments in ARM templates when resources access each other
+
+### Deployment Error Recovery Rule
+
+When a deployment fails, **never weaken security controls to fix it**. Specifically:
+- Do NOT re-enable shared key access, disable firewalls, open NSGs, remove authentication, or downgrade TLS to work around errors
+- Do NOT replace identity-based access with connection strings or shared keys
+- Instead: verify RBAC roles are complete, check for Azure Policy conflicts, check resource dependencies and ordering, and ensure managed identities exist before dependent resources try to use them
+- If the secure path genuinely cannot work, **stop and ask the user** — do not silently regress
+
+### Security Gate Re-Run Rule
+
+**Any modification to a template after the initial security analysis MUST trigger a full security gate re-run before deployment.** A template that passed the gate at version N is not pre-approved at version N+1.
+
 - Use AAD-only authentication for SQL databases (`azureADOnlyAuthentication: true`)
 - Use Key Vault references for secrets in app settings (`@Microsoft.KeyVault(...)`)
 - Enable diagnostic logging and monitoring
