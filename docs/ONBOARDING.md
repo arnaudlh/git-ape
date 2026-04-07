@@ -520,9 +520,9 @@ The following workflows will be added:
 | `git-ape-plan.yml` | PR with template changes | Validate, security scan, what-if, cost estimate |
 | `git-ape-deploy.yml` | Merge to main or `/deploy` comment | Execute ARM deployment |
 | `git-ape-destroy.yml` | Merge PR with `destroy-requested` status | Delete resource group |
-| `git-ape-drift.yml` | Every 6 hours (cron) | Detect configuration drift |
-| `git-ape-ttl-reaper.yml` | Daily at 2 AM UTC | Destroy expired deployments |
 | `git-ape-verify.yml` | Manual dispatch | Verify OIDC, RBAC, and pipeline health |
+
+> **Note:** Drift detection and TTL-based cleanup are being replaced by agentic workflows — coming soon.
 
 ### Step 6: Verify Setup
 
@@ -635,8 +635,6 @@ Environment creation requires admin access to the repository. Ask a repo admin t
 │  │  git-ape-plan.yml     → OIDC token (PR subject)               │ │
 │  │  git-ape-deploy.yml   → OIDC token (main / azure-deploy env)  │ │
 │  │  git-ape-destroy.yml  → OIDC token (azure-destroy env)        │ │
-│  │  git-ape-drift.yml    → OIDC token (main subject)             │ │
-│  │  git-ape-ttl-reaper.yml → OIDC token (azure-destroy env)      │ │
 │  │  git-ape-verify.yml   → OIDC token (workflow_dispatch)        │ │
 │  └──────────┬──────────────────────────────────────────────────────┘ │
 └─────────────┼────────────────────────────────────────────────────────┘
