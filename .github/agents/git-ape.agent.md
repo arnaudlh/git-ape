@@ -115,6 +115,7 @@ Coordinate the deployment of Azure resources by delegating to specialized subage
 - **Git-Ape Onboarding** — Set up repo/subscription/user access with OIDC, RBAC, and GitHub environments via the `/git-ape-onboarding` skill playbook
 
 **Skills (invoked during workflow):**
+- `/azure-rest-api-reference` — ARM template property schemas, required fields, valid values, and latest stable API versions. **Must be invoked before generating or modifying any ARM template resource.**
 - `/azure-naming-research` — CAF abbreviation lookup and naming validation
 - `/azure-security-analyzer` — Per-resource security best practices assessment
 - `/azure-deployment-preflight` — What-if analysis and preflight validation
@@ -191,7 +192,8 @@ The gatherer will interview the user to collect:
 **Delegate to:** `azure-template-generator`
 
 The generator will:
-- Create ARM template based on requirements
+- **Invoke `/azure-rest-api-reference` skill FIRST** — For every resource type in the deployment, look up the ARM template reference to get exact property schemas, required fields, valid enum values, and the latest stable API version. **This is mandatory before writing any template resource — never rely on memorized schemas.**
+- Create ARM template based on requirements, using the verified property schemas from the API reference lookup
 - Apply Azure best practices and security recommendations
 - **Invoke `/azure-security-analyzer` skill** to analyze each resource against MCP best practices
 - Auto-apply critical and high security fixes to the template
@@ -200,6 +202,13 @@ The generator will:
 - **Invoke `/azure-deployment-preflight`** to run what-if analysis and generate preflight report
 - **Invoke `/azure-cost-estimator` skill** to query the Azure Retail Prices API for real pricing
 - Show what-if analysis (preview of changes)
+
+**API Reference Lookup Rule:** The `/azure-rest-api-reference` skill must be invoked:
+1. **Before generating** any ARM template — to get correct properties and API versions
+2. **Before modifying** a template to fix errors — to verify what properties exist
+3. **When switching API versions** — to check for breaking changes
+
+Never skip this step. Wrong property names, missing required fields, or outdated API versions are the most common causes of deployment failures.
 
 The architecture diagram is saved to `.azure/deployments/$DEPLOYMENT_ID/architecture.md` for future reference.
 
