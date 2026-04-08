@@ -6,7 +6,7 @@
 > EXPERIMENTAL PROJECT: Git-Ape is in active development and is not production-ready.
 > Use it for local development, demos, sandbox subscriptions, and learning only.
 
-Git-Ape is a **platform engineering framework** built on GitHub Copilot. It provides a structured, multi-agent system for planning, validating, and deploying Azure infrastructure — with security gates, cost analysis, drift detection, and CI/CD pipeline integration built in.
+Git-Ape is a **platform engineering framework** built on GitHub Copilot. It provides a structured, multi-agent system for planning, validating, and deploying Azure infrastructure — with security gates, cost analysis, and CI/CD pipeline integration built in.
 
 ## What It Is
 
@@ -15,7 +15,7 @@ Git-Ape packages a set of Copilot agents and skills focused on Azure infrastruct
 - It helps you gather deployment requirements.
 - It generates ARM templates and supporting deployment artifacts.
 - It runs security, preflight, and cost checks before deployment.
-- It supports onboarding, drift detection, and post-deployment validation.
+- It supports onboarding and post-deployment validation.
 
 ## What It Does
 
@@ -31,7 +31,7 @@ Common tasks it supports:
 - Deploying Azure application stacks such as Function Apps, Web Apps, Storage, SQL, Cosmos DB, and Container Apps.
 - Bootstrapping repository onboarding for OIDC, RBAC, GitHub environments, and secrets.
 - Saving deployment artifacts under `.azure/deployments/` for audit and reuse.
-- Detecting configuration drift between Azure and stored deployment state.
+- Detecting configuration drift between Azure and stored deployment state (agentic workflow — coming soon).
 
 ## Get Started
 
@@ -80,7 +80,7 @@ Use @git-ape to clean up afterwards by using:
 - [docs/ONBOARDING.md](docs/ONBOARDING.md): Repository onboarding, OIDC, RBAC, and GitHub environment setup.
 - [docs/AZURE_MCP_SETUP.md](docs/AZURE_MCP_SETUP.md): Azure MCP server configuration for VS Code.
 - [docs/DEPLOYMENT_STATE.md](docs/DEPLOYMENT_STATE.md): How deployment artifacts are stored and reused.
-- [docs/DRIFT_DETECTION.md](docs/DRIFT_DETECTION.md): Detecting and reconciling Azure drift.
+- [docs/DRIFT_DETECTION.md](docs/DRIFT_DETECTION.md): Detecting and reconciling Azure drift (agentic workflow — coming soon).
 - [docs/CODESPACES.md](docs/CODESPACES.md): GitHub Codespaces and dev container setup.
 
 ## Architecture
@@ -214,9 +214,9 @@ graph LR
 | `git-ape-plan.yml` | PR with template changes | Validate, what-if, post plan as PR comment |
 | `git-ape-deploy.yml` | Merge to main or `/deploy` comment | Execute ARM deployment |
 | `git-ape-destroy.yml` | Merge PR with `destroy-requested` | Delete resource group |
-| `git-ape-drift.yml` | Every 6 hours (cron) | Detect configuration drift |
-| `git-ape-ttl-reaper.yml` | Daily at 2 AM UTC | Destroy expired deployments |
 | `git-ape-verify.yml` | Manual dispatch | Verify OIDC, RBAC, pipeline health |
+
+> **Note:** Drift detection and TTL-based cleanup were previously handled by scheduled workflows (`git-ape-drift.yml`, `git-ape-ttl-reaper.yml`). These are being replaced by agentic workflows — coming soon.
 
 ## Included Components
 
@@ -248,8 +248,6 @@ plugin.json                          # Plugin manifest
     ├── git-ape-plan.yml
     ├── git-ape-deploy.yml
     ├── git-ape-destroy.yml
-    ├── git-ape-drift.yml
-    ├── git-ape-ttl-reaper.yml
     └── git-ape-verify.yml
 ```
 
