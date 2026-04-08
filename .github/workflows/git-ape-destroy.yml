@@ -151,32 +151,112 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Check resource group and inventory resources
+      - name: Build destroy plan
         id: check
         if: steps.state.outputs.found == 'true'
         run: |
           RG="${{ steps.state.outputs.resource_group }}"
+          DEPLOYMENT_ID="${{ matrix.deployment_id }}"
+
+          # Check if resource group exists
           EXISTS=$(az group exists --name "$RG")
+          echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
 
-          if [[ "$EXISTS" == "true" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-
-            # Inventory resources before deletion
-            RESOURCES=$(az resource list --resource-group "$RG" \
-              --query "[].{name:name, type:type, provisioningState:provisioningState}" \
-              --output json 2>/dev/null || echo "[]")
-            RESOURCE_COUNT=$(echo "$RESOURCES" | jq 'length')
-
-            echo "resource_count=$RESOURCE_COUNT" >> "$GITHUB_OUTPUT"
-            echo "resources<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$RESOURCES" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-
-            echo "Resource group $RG exists with $RESOURCE_COUNT resources:"
-            echo "$RESOURCES" | jq -r '.[] | "  - \(.type)/\(.name) (\(.provisioningState))"'
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+          if [[ "$EXISTS" != "true" ]]; then
             echo "Resource group $RG does not exist (already deleted?)"
+            echo "resource_count=0" >> "$GITHUB_OUTPUT"
+            echo "sub_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Inventory RG resources
+          RESOURCES=$(az resource list --resource-group "$RG" \
+            --query "[].{name:name, type:type, id:id, provisioningState:provisioningState}" \
+            --output json 2>/dev/null || echo "[]")
+          RESOURCE_COUNT=$(echo "$RESOURCES" | jq 'length')
+
+          echo "resource_count=$RESOURCE_COUNT" >> "$GITHUB_OUTPUT"
+          echo "resources<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RESOURCES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo "Resource group $RG has $RESOURCE_COUNT resources"
+          echo "$RESOURCES" | jq -r '.[] | "  - \(.type)/\(.name) (\(.provisioningState))"'
+
+          # Query deployment operations to find subscription-scoped resources
+          # These are NOT deleted by az group delete (e.g. role assignments, policy assignments)
+          SUB_RESOURCES="[]"
+
+          OPS=$(az deployment operation sub list \
+            --name "$DEPLOYMENT_ID" \
+            --query "[?properties.provisioningState=='Succeeded' && properties.targetResource.id != null].properties.targetResource" \
+            -o json 2>/dev/null || echo "[]")
+
+          if [[ "$OPS" != "[]" ]]; then
+            # Find subscription-scoped authorization/policy resources (role assignments, etc.)
+            # These live outside the RG and survive az group delete
+            SUB_RESOURCES=$(echo "$OPS" | jq -c '[
+              .[] | select(
+                (.resourceType // "" | test("Microsoft.Authorization|Microsoft.Policy")) and
+                (.id // "" | test("/resourceGroups/") | not)
+              )
+            ]')
+
+            # Check nested deployments for RG-scoped role assignments too
+            NESTED_NAMES=$(echo "$OPS" | jq -r '[
+              .[] | select(.resourceType == "Microsoft.Resources/deployments")
+            ] | .[].resourceName // empty')
+
+            for NESTED_NAME in $NESTED_NAMES; do
+              NESTED_OPS=$(az deployment operation group list \
+                --resource-group "$RG" --name "$NESTED_NAME" \
+                --query "[?properties.provisioningState=='Succeeded' && properties.targetResource.id != null].properties.targetResource" \
+                -o json 2>/dev/null || echo "[]")
+
+              # Role assignments scoped to resources within the RG
+              NESTED_AUTH=$(echo "$NESTED_OPS" | jq -c '[
+                .[] | select(
+                  (.resourceType // "" | test("Microsoft.Authorization"))
+                )
+              ]')
+
+              SUB_RESOURCES=$(jq -n --argjson a "$SUB_RESOURCES" --argjson b "$NESTED_AUTH" '$a + $b')
+            done
+          fi
+
+          SUB_COUNT=$(echo "$SUB_RESOURCES" | jq 'length')
+
+          echo "sub_count=$SUB_COUNT" >> "$GITHUB_OUTPUT"
+          echo "sub_resources<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$SUB_RESOURCES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "=== Destroy Plan ==="
+          echo "Resource group:              $RG ($RESOURCE_COUNT resources)"
+          echo "Subscription-scoped resources: $SUB_COUNT"
+          if [[ "$SUB_COUNT" -gt 0 ]]; then
+            echo "$SUB_RESOURCES" | jq -r '.[] | "  - \(.resourceType): \(.resourceName) (\(.id))"'
+          fi
+          echo "==================="
+
+      - name: Delete subscription-scoped resources
+        id: destroy_sub
+        if: steps.check.outputs.exists == 'true' && steps.check.outputs.sub_count != '0'
+        run: |
+          echo "🗑️ Deleting subscription-scoped resources first..."
+          FAILED=0
+
+          echo '${{ steps.check.outputs.sub_resources }}' | jq -r '.[].id' | while read -r RESOURCE_ID; do
+            echo "  Deleting: $RESOURCE_ID"
+            if ! az resource delete --ids "$RESOURCE_ID" 2>&1; then
+              echo "::warning::Failed to delete $RESOURCE_ID"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [[ "$FAILED" -gt 0 ]]; then
+            echo "::warning::$FAILED subscription-scoped resource(s) failed to delete"
           fi
 
       - name: Delete resource group
@@ -246,6 +326,7 @@ jobs:
           STATUS="${{ steps.destroy.outputs.destroy_status }}"
           DURATION="${{ steps.destroy.outputs.destroy_duration }}"
           RESOURCE_COUNT="${{ steps.check.outputs.resource_count }}"
+          SUB_COUNT="${{ steps.check.outputs.sub_count }}"
           EXISTS="${{ steps.check.outputs.exists }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
@@ -257,7 +338,7 @@ jobs:
           if [[ "$EXISTS" == "false" ]]; then
             echo "Result:         Already destroyed"
           elif [[ "$STATUS" == "succeeded" ]]; then
-            echo "Result:         ✅ Destroyed ($RESOURCE_COUNT resources)"
+            echo "Result:         ✅ Destroyed ($RESOURCE_COUNT RG resources + $SUB_COUNT subscription-scoped)"
             echo "Duration:       $DURATION"
           else
             echo "Result:         ❌ Failed"

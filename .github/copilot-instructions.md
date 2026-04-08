@@ -319,6 +319,30 @@ When a deployment fails, **never weaken security controls to fix it**. Specifica
 
 **All security reports and assessments produced by Git-Ape agents and skills MUST be factually accurate and verifiable against the actual ARM template or Azure resource configuration.**
 
+## Compliance & Azure Policy
+
+### Compliance Frameworks
+
+- **Primary:** General Azure best practices
+- Optionally adopt: CIS Azure Foundations v3.0, NIST SP 800-53 Rev 5, or other regulatory initiatives
+
+### Policy Enforcement Mode
+
+- **Default:** Audit (use `Audit`/`AuditIfNotExists` effects for initial rollout)
+- **Production hardening:** Deny (use `Deny` effects for Critical-severity policies once audit baselines are clean)
+
+### Policy Categories
+
+Always assess and recommend policies for: identity, networking, storage, compute, monitoring, tagging.
+
+### Policy Advisor Integration
+
+- Use `/azure-policy-advisor` skill to assess ARM templates against compliance frameworks
+- Query Microsoft Learn for current built-in policy definitions — do not hardcode policy IDs
+- Output `policy-assessment.md` and `policy-recommendations.json` to deployment directory
+- Policy gate is **advisory** (not blocking) — surfaces findings without halting deployment
+- During onboarding, ask the user about compliance framework and enforcement mode preferences and update this section accordingly
+
 ### Rules
 
 1. **Cite evidence**: Every "✅ Applied" finding must reference the exact ARM property path and value from the template. No exceptions.

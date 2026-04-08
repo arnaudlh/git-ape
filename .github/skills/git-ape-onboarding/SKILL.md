@@ -94,7 +94,33 @@ OIDC_PREFIX="repository_owner_id:<OWNER_ID>:repository_id:<REPO_ID>"
 6. Assign RBAC on each target subscription.
 7. Set GitHub repo or environment secrets.
 8. Create GitHub environments and branch policies when permissions allow.
-9. Verify federated credentials, role assignments, and secrets.
+9. Capture compliance and Azure Policy preferences (see below).
+10. Verify federated credentials, role assignments, and secrets.
+
+### Step 9: Compliance & Azure Policy Preferences
+
+After RBAC and environment setup, ask the user about compliance requirements and update the `## Compliance & Azure Policy` section in `.github/copilot-instructions.md`:
+
+1. **Ask compliance framework:**
+   ```
+   Which compliance framework should Git-Ape use for policy recommendations?
+   - General Azure best practices (recommended)
+   - CIS Azure Foundations v3.0
+   - NIST SP 800-53 Rev 5
+   - None — skip policy recommendations
+   ```
+
+2. **Ask enforcement mode:**
+   ```
+   How should policies be enforced initially?
+   - Audit only (recommended — evaluate compliance without blocking)
+   - Enforce (Deny — block non-compliant deployments immediately)
+   ```
+
+3. **Update `copilot-instructions.md`** with the user's choices:
+   - Edit the `## Compliance & Azure Policy` → `### Compliance Frameworks` section
+   - Set the `### Policy Enforcement Mode` default to the user's choice
+   - Commit the update as part of the onboarding changes
 
 ## Safe-Execution Rules
 
@@ -111,7 +137,9 @@ OIDC_PREFIX="repository_owner_id:<OWNER_ID>:repository_id:<REPO_ID>"
 3. Validate current Azure/GitHub auth context (subscription, tenant, GitHub org).
 4. Ask for final confirmation.
 5. Execute the required Azure CLI and GitHub CLI commands directly from this playbook.
-6. Summarize outcome and suggest verification commands.
+6. Ask compliance framework and enforcement mode preferences (Step 9 in playbook).
+7. Update `copilot-instructions.md` with compliance preferences.
+8. Summarize outcome and suggest verification commands.
 
 ## Known Gotchas
 

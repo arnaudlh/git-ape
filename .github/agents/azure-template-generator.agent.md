@@ -343,7 +343,25 @@ Proceed to show the full deployment plan with confirmation prompt as normal.
 - Marking a feature as "✅ Applied" when the property doesn't exist in the template at all
 - Confusing Azure platform defaults with explicitly configured security controls
 
-### 4. Validate Template & Run Preflight
+### 4. Policy Compliance Assessment (Advisory)
+
+**Invoke skill:** `/azure-policy-advisor`
+
+Pass the generated ARM template and compliance context (from `copilot-instructions.md`) to the policy advisor skill. It will:
+
+1. **Query Microsoft Learn** for built-in policy definitions matching the template's resource types
+2. **Cross-reference** template configuration against recommended policies
+3. **Classify** recommendations by severity tier (Critical/High/Medium/Low)
+4. **Return** per-resource policy recommendations with implementation options
+
+**After receiving the policy assessment:**
+
+- Include the summary in the deployment plan (recommended policy count + compliance coverage)
+- Save `policy-assessment.md` to `.azure/deployments/$DEPLOYMENT_ID/policy-assessment.md`
+- Save `policy-recommendations.json` to `.azure/deployments/$DEPLOYMENT_ID/policy-recommendations.json`
+- **Policy gate is ADVISORY** — findings are surfaced but do NOT block deployment
+
+### 5. Validate Template & Run Preflight
 
 Use Azure MCP tools and the preflight skill to validate:
 
@@ -377,7 +395,7 @@ Use Azure MCP tools and the preflight skill to validate:
 
 **Include preflight results in the deployment plan** so the user sees exactly what will change.
 
-### 5. Generate Architecture Diagram
+### 6. Generate Architecture Diagram
 
 **Generate a Mermaid architecture diagram** that visualizes the resources, their relationships, and data flow. This diagram is shown to the user during confirmation and saved with the deployment artifacts.
 
@@ -468,7 +486,7 @@ cat > .azure/deployments/$DEPLOYMENT_ID/architecture.md << 'EOF'
 EOF
 ```
 
-### 6. Echo Deployment Intent
+### 7. Echo Deployment Intent
 
 **CRITICAL:** Before returning the template, create a clear summary for user confirmation.
 
@@ -598,6 +616,13 @@ Would you like me to apply these before deployment?
 **Modified Resources:** {count or "None"}
 **Deleted Resources:** {count or "None"}
 
+### 📋 Policy Compliance (Advisory)
+
+**Framework:** {from copilot-instructions.md compliance context}
+**Policies recommended:** {N} | **Already compliant:** {M} | **Gaps:** {N-M}
+
+Use `/azure-policy-advisor` for the full assessment and implementation commands.
+
 ### Next Steps
 
 If this looks correct, confirm to proceed with deployment.
@@ -607,7 +632,7 @@ If you need changes, let me know what to adjust.
 **⚠️ USER CONFIRMATION REQUIRED BEFORE DEPLOYMENT**
 ```
 
-### 6. Output ARM Template
+### 8. Output ARM Template
 
 After showing the preview, provide the complete ARM template:
 
