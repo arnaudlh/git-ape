@@ -81,6 +81,7 @@ Use @git-ape to clean up afterwards by using:
 - [docs/AZURE_MCP_SETUP.md](docs/AZURE_MCP_SETUP.md): Azure MCP server configuration for VS Code.
 - [docs/DEPLOYMENT_STATE.md](docs/DEPLOYMENT_STATE.md): How deployment artifacts are stored and reused.
 - [docs/DRIFT_DETECTION.md](docs/DRIFT_DETECTION.md): Detecting and reconciling Azure drift.
+- [docs/CODESPACES.md](docs/CODESPACES.md): GitHub Codespaces and dev container setup.
 
 ## Architecture
 
