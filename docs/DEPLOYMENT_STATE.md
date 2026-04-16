@@ -4,11 +4,16 @@
 > EXPERIMENTAL ONLY: State formats, file schemas, and lifecycle behavior may change at any time.
 > Do **not** rely on this project for production deployment tracking, audit, or recovery.
 
-This document explains how Git-Ape persists deployment artifacts, manages state, and enables deployment reuse.
+This document explains how Git-APE persists deployment artifacts, manages state, and enables deployment reuse across both Azure and AWS.
 
 ## Overview
 
-Every deployment creates a timestamped directory under `.azure/deployments/` containing:
+Every deployment creates a subdirectory under the cloud-specific deployments directory:
+
+- **Azure:** `.azure/deployments/{deployment-id}/`
+- **AWS:** `.aws/deployments/{deployment-id}/`
+
+Each deployment directory contains:
 
 - Complete audit trail of the deployment process
 - Reusable configuration for future deployments
@@ -16,6 +21,8 @@ Every deployment creates a timestamped directory under `.azure/deployments/` con
 - Error information for failure analysis
 
 ## Directory Structure
+
+### Azure
 
 ```
 .azure/deployments/
@@ -45,11 +52,42 @@ Every deployment creates a timestamped directory under `.azure/deployments/` con
     └── rollback.log                   # Rollback actions
 ```
 
+### AWS
+
+```
+.aws/deployments/
+├── helloworld-dev/                   # Successful deployment
+│   ├── metadata.json                  # Deployment metadata (includes "cloud": "aws")
+│   ├── requirements.json              # User requirements
+│   ├── template.yaml                  # CloudFormation template (YAML or JSON)
+│   ├── architecture.md                # Mermaid architecture diagram
+│   ├── deployment.log                 # Deployment progress
+│   └── tests.json                     # Test results
+│
+├── deploy-20260319-120000/           # Failed deployment
+│   ├── metadata.json
+│   ├── requirements.json
+│   ├── template.yaml
+│   ├── architecture.md
+│   ├── deployment.log
+│   └── error.log                      # Error details
+│
+└── deploy-20260319-140000/           # Rolled back deployment
+    ├── metadata.json
+    ├── requirements.json
+    ├── template.yaml
+    ├── architecture.md
+    ├── deployment.log
+    └── rollback.log                   # Rollback actions
+```
+
 ## File Formats
 
 ### metadata.json
 
-Contains deployment tracking information:
+Contains deployment tracking information. The format differs slightly between clouds.
+
+**Azure:**
 
 ```json
 {
@@ -57,6 +95,11 @@ Contains deployment tracking information:
   "timestamp": "2026-02-18T14:30:22Z",
   "user": "arnaud@example.com",
   "status": "succeeded",
+  "scope": "subscription",
+  "region": "eastus",
+  "project": "api",
+  "environment": "dev",
+  "resourceGroup": "rg-api-dev-eastus",
   "resources": [
     {
       "type": "Microsoft.Web/sites",
@@ -65,21 +108,53 @@ Contains deployment tracking information:
       "status": "succeeded"
     }
   ],
-  "estimatedCost": 12.50,
-  "actualDuration": 245
+  "estimatedMonthlyCost": "$12.50",
+  "createdBy": "git-ape-agent"
 }
 ```
 
-**Status values:**
+**AWS:**
+
+```json
+{
+  "deploymentId": "helloworld-dev",
+  "cloud": "aws",
+  "timestamp": "2026-04-15T04:51:00Z",
+  "user": "arn:aws:iam::123456789012:user/dev",
+  "status": "succeeded",
+  "region": "us-east-1",
+  "project": "helloworld",
+  "environment": "dev",
+  "stackName": "helloworld-dev",
+  "resources": [
+    "AWS::IAM::Role",
+    "AWS::Lambda::Function",
+    "AWS::ApiGatewayV2::Api"
+  ],
+  "estimatedMonthlyCost": "$0.00",
+  "createdBy": "git-ape-agent"
+}
+```
+
+**Key differences:**
+- AWS metadata includes `"cloud": "aws"` (Azure metadata omits this or defaults to `"azure"`)
+- AWS uses `stackName` instead of `resourceGroup`
+- AWS resources use CloudFormation types (e.g., `AWS::Lambda::Function`)
+- Azure resources use ARM types (e.g., `Microsoft.Web/sites`)
+
+**Status values (both clouds):**
 - `initialized` - Deployment directory created
 - `gathering-requirements` - Collecting user input
-- `generating-template` - Creating ARM template
+- `generating-template` - Creating ARM/CloudFormation template
 - `awaiting-confirmation` - Waiting for user approval
 - `deploying` - Deployment in progress
 - `testing` - Running integration tests
 - `succeeded` - Completed successfully
 - `failed` - Deployment failed
 - `rolled-back` - Resources removed after failure
+- `destroyed` - Resources torn down
+- `already-destroyed` - Resources were already deleted
+- `destroy-requested` - Teardown has been requested
 
 ### requirements.json
 
@@ -134,9 +209,9 @@ User requirements collected by the Requirements Gatherer agent:
 }
 ```
 
-### template.json
+### template.json / template.yaml
 
-Generated ARM template (standard Azure format):
+**Azure** uses `template.json` — a standard ARM template:
 
 ```json
 {
@@ -165,27 +240,6 @@ Generated ARM template (standard Azure format):
         "name": "Standard_LRS"
       },
       "kind": "StorageV2"
-    },
-    {
-      "type": "Microsoft.Web/sites",
-      "apiVersion": "2021-02-01",
-      "name": "[parameters('functionAppName')]",
-      "location": "[parameters('location')]",
-      "kind": "functionapp",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
-      ],
-      "properties": {
-        "httpsOnly": true,
-        "siteConfig": {
-          "appSettings": [
-            {
-              "name": "AzureWebJobsStorage",
-              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2021-04-01').keys[0].value)]"
-            }
-          ]
-        }
-      }
     }
   ],
   "outputs": {
@@ -195,6 +249,47 @@ Generated ARM template (standard Azure format):
     }
   }
 }
+```
+
+**AWS** uses `template.yaml` (preferred) or `template.json` — a CloudFormation template:
+
+```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function with API Gateway
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'lambda-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  HelloFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'hello-${Environment}'
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {'statusCode': 200, 'body': 'Hello!'}
+
+Outputs:
+  FunctionArn:
+    Value: !GetAtt HelloFunction.Arn
 ```
 
 ### deployment.log
@@ -338,8 +433,8 @@ D. Upgrade subscription tier
 
 Stack Trace:
  at Microsoft.Azure.Management.WebSites.SitesOperationsExtensions.CreateOrUpdate
- at Git-Ape.ResourceDeployer.DeployResource
- at Git-Ape.Orchestrator.ExecuteDeployment
+ at Git-APE.ResourceDeployer.DeployResource
+ at Git-APE.Orchestrator.ExecuteDeployment
 
 Related Documentation:
 - https://learn.microsoft.com/azure/azure-resource-manager/management/request-limits-and-throttling
@@ -348,26 +443,43 @@ Related Documentation:
 
 ## Using the Deployment Manager
 
-The `.github/scripts/deployment-manager.sh` utility helps manage deployment state:
+The `.github/scripts/deployment-manager.sh` utility helps manage deployment state across both Azure and AWS.
 
 ### List All Deployments
 
 ```bash
-.github/scripts/deployment-manager.sh list
+.github/scripts/deployment-manager.sh list          # Both clouds
+.github/scripts/deployment-manager.sh list azure     # Azure only
+.github/scripts/deployment-manager.sh list aws       # AWS only
 ```
 
 Output:
 ```
 Recent Deployments
 -----------------------------------------------------------
+
+☁ Azure (.azure/deployments/)
+-----------------------------------------------------------
 ✓ deploy-20260218-163500
-  Status: succeeded | Resources: 3 | Time: 2026-02-18T16:35:00Z
+  Status: succeeded | Project: api | Region: eastus
+  Resources: 3 | Cost: $12.50 | Time: 2026-02-18T16:35:00Z
 
 ↶ deploy-20260218-151030
-  Status: rolled-back | Resources: 1 | Time: 2026-02-18T15:10:30Z
+  Status: rolled-back | Project: webapp | Region: westus2
+  Resources: 1 | Cost: N/A | Time: 2026-02-18T15:10:30Z
 
-✗ deploy-20260218-143022
-  Status: failed | Resources: 0 | Time: 2026-02-18T14:30:22Z
+☁ AWS (.aws/deployments/)
+-----------------------------------------------------------
+✓ helloworld-dev
+  Status: succeeded | Project: helloworld | Region: us-east-1
+  Resources: 10 | Cost: $0.00 | Time: 2026-04-15T04:51:00Z
+```
+
+### Initialize a Deployment
+
+```bash
+.github/scripts/deployment-manager.sh init my-app-dev azure    # Azure (default)
+.github/scripts/deployment-manager.sh init my-lambda-dev aws   # AWS
 ```
 
 ### Show Deployment Details
@@ -466,13 +578,14 @@ Proceed?
 Keep deployment state as an audit trail:
 
 ```bash
-# Never delete .azure/deployments/ directory
+# Never delete deployment directories
 # Add to .gitignore if contains sensitive data
 echo ".azure/deployments/" >> .gitignore
+echo ".aws/deployments/" >> .gitignore
 
 # Or commit for team visibility (remove sensitive values first)
-git add .azure/deployments/*/metadata.json
-git add .azure/deployments/*/requirements.json
+git add .azure/deployments/*/metadata.json .aws/deployments/*/metadata.json
+git add .azure/deployments/*/requirements.json .aws/deployments/*/requirements.json
 git commit -m "Record deployment metadata"
 ```
 
@@ -481,8 +594,8 @@ git commit -m "Record deployment metadata"
 Use deployment state to track costs over time:
 
 ```bash
-# Extract estimated costs from all deployments
-jq -r '.estimatedCost' .azure/deployments/*/metadata.json | awk '{sum+=$1} END {print "Total estimated monthly cost: $" sum}'
+# Extract estimated costs from all deployments (both clouds)
+jq -r '.estimatedMonthlyCost // "N/A"' .azure/deployments/*/metadata.json .aws/deployments/*/metadata.json 2>/dev/null
 ```
 
 ### Disaster Recovery
@@ -503,14 +616,15 @@ Link deployment IDs in documentation:
 ```markdown
 ## Production Environment
 
+### Azure
 Current deployment: `deploy-20260218-163500`
-
-Resources:
-- Function App: func-api-prod-eastus
-- Storage: stfuncprodeastus8k3m
-- App Insights: appi-api-prod-eastus
-
+Resources: Function App, Storage, App Insights
 See `.azure/deployments/deploy-20260218-163500/` for full configuration.
+
+### AWS
+Current deployment: `helloworld-prod`
+Resources: Lambda, API Gateway, CloudFront
+See `.aws/deployments/helloworld-prod/` for full configuration.
 ```
 
 ## Troubleshooting
