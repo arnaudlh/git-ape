@@ -473,9 +473,15 @@ These rules apply to ALL subagents and skills that produce security-related outp
 
 Persist deployment artifacts to workspace for audit trail and reuse:
 
-**Storage Location:** `.azure/deployments/{timestamp}/`
+**Storage Locations:**
+- Azure: `.azure/deployments/{deployment-id}/`
+- AWS: `.aws/deployments/{deployment-id}/`
 
-For each deployment, save:
+Each cloud provider uses its own directory tree with the same per-deployment subdirectory pattern.
+
+### Azure Deployment Files
+
+For each Azure deployment, save:
 - `requirements.json` - Collected deployment parameters
 - `template.json` - Generated ARM template
 - `parameters.json` - Template parameters file
@@ -487,25 +493,87 @@ For each deployment, save:
 - `tests.json` - Integration test results
 - `metadata.json` - Deployment ID, timestamp, user, status
 
+### AWS Deployment Files
+
+For each AWS deployment, save:
+- `requirements.json` - Collected deployment parameters
+- `template.yaml` - CloudFormation template (YAML preferred, JSON also accepted)
+- `architecture.md` - Mermaid architecture diagram and resource inventory
+- `security-analysis.md` - Per-resource security best practices assessment
+- `deployment.log` - Deployment progress and results
+- `tests.json` - Integration test results
+- `metadata.json` - Deployment ID, cloud, timestamp, user, status, stackName
+
+AWS `metadata.json` must include `"cloud": "aws"` and `"stackName"` fields.
+
 **In Headless Mode:** Commit these files to the branch so the PR shows full deployment artifacts. The PR diff becomes the deployment review.
 
-**Before Starting:**
+**Before Starting (Azure):**
 ```bash
 DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)"
 mkdir -p .azure/deployments/$DEPLOYMENT_ID
 ```
 
-**After Each Stage:**
+**Before Starting (AWS):**
+```bash
+DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)"
+mkdir -p .aws/deployments/$DEPLOYMENT_ID
+```
+
+**After Each Stage (Azure):**
 - Requirements gathered → Save `.azure/deployments/$DEPLOYMENT_ID/requirements.json`
 - Template generated → Save `.azure/deployments/$DEPLOYMENT_ID/template.json`, `.azure/deployments/$DEPLOYMENT_ID/architecture.md`, `.azure/deployments/$DEPLOYMENT_ID/security-analysis.md`, `.azure/deployments/$DEPLOYMENT_ID/policy-assessment.md`, and `.azure/deployments/$DEPLOYMENT_ID/policy-recommendations.json`
 - Deployment complete → Save `.azure/deployments/$DEPLOYMENT_ID/deployment.log`
 - Tests complete → Save `.azure/deployments/$DEPLOYMENT_ID/tests.json`
+
+**After Each Stage (AWS):**
+- Requirements gathered → Save `.aws/deployments/$DEPLOYMENT_ID/requirements.json`
+- Template generated → Save `.aws/deployments/$DEPLOYMENT_ID/template.yaml`, `.aws/deployments/$DEPLOYMENT_ID/architecture.md`, and `.aws/deployments/$DEPLOYMENT_ID/security-analysis.md`
+- Deployment complete → Save `.aws/deployments/$DEPLOYMENT_ID/deployment.log`
+- Tests complete → Save `.aws/deployments/$DEPLOYMENT_ID/tests.json`
 
 **Reuse Previous Deployments:**
 Users can reference previous deployments:
 ```
 User: "Deploy the same Function App as last time"
 Agent: [Loads latest requirements.json, updates timestamp/names, proceeds]
+```
+
+### Status Display
+
+When the user asks for status (e.g., `@git-ape status`), scan **both** `.azure/deployments/` and `.aws/deployments/` and present a unified view:
+
+```markdown
+### Azure Deployments
+
+| Deployment | Project | Region | Status | Cost |
+|---|---|---|---|---|
+| `deploy-20260318-054417` | cheapvm (dev) | France Central | 🔴 Destroyed | ~$12.78/mo |
+| `helloworld-dev` | helloworld (dev) | East US | 🟢 Succeeded | ~$0.01/mo |
+
+### AWS Deployments
+
+| Deployment | Project | Region | Status | Cost |
+|---|---|---|---|---|
+| `helloworld-dev` | helloworld (dev) | us-east-1 | 🔴 Destroyed | ~$0.00/mo |
+```
+
+**Status icons:**
+- 🟢 `succeeded` / `completed`
+- 🔴 `destroyed` / `already-destroyed` / `failed`
+- 🟡 `in-progress` / `deploying`
+- ⚠️ `destroy-requested`
+- ↶ `rolled-back`
+
+Read `metadata.json` from each deployment subdirectory. For each entry, extract: `deploymentId`, `project`, `environment`, `region`, `status`, and `estimatedMonthlyCost`.
+
+If no deployments exist for a cloud, show "No deployments found."
+
+The `.github/scripts/deployment-manager.sh` utility also supports listing across both clouds:
+```bash
+.github/scripts/deployment-manager.sh list         # Both clouds
+.github/scripts/deployment-manager.sh list azure    # Azure only
+.github/scripts/deployment-manager.sh list aws      # AWS only
 ```
 
 ## Error Handling
