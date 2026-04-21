@@ -6,6 +6,8 @@
 > EXPERIMENTAL PROJECT: Git-Ape is in active development and is not production-ready.
 > Use it for local development, demos, sandbox subscriptions, and learning only.
 
+**Documentation:** [azure.github.io/git-ape-private](https://azure.github.io/git-ape-private/)
+
 Git-Ape is a **platform engineering framework** built on GitHub Copilot. It provides a structured, multi-agent system for planning, validating, and deploying Azure infrastructure — with security gates, cost analysis, and CI/CD pipeline integration built in.
 
 ## What It Is
@@ -258,6 +260,18 @@ plugin.json                          # Plugin manifest
 ```
 
 See [plugin.json](plugin.json) and [.github/plugin/marketplace.json](.github/plugin/marketplace.json) for packaging details.
+
+## Documentation Website
+
+The documentation site is deployed to [GitHub Pages](https://azure.github.io/git-ape-private/) automatically when changes merge to `main`.
+
+The deployment workflow ([`.github/workflows/git-ape-docs.yml`](.github/workflows/git-ape-docs.yml)) builds the Docusaurus site under `website/` and publishes via `actions/deploy-pages`.
+
+**Setup requirement:** GitHub Pages must be enabled on the repository.
+
+1. Go to **Settings → Pages**.
+2. Set **Source** to **GitHub Actions**.
+3. Merge a PR that changes `website/**` — the workflow runs and publishes the site.
 
 ## License
 
