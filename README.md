@@ -45,7 +45,13 @@ Recommended:
 
 ```bash
 copilot plugin marketplace add Azure/git-ape-private
-copilot plugin install Azure/git-ape-private
+copilot plugin install git-ape@git-ape-private
+```
+
+Verify the installation:
+
+```bash
+copilot plugin list   # Should show: git-ape@git-ape-private
 ```
 
 Manual option:
