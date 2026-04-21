@@ -206,7 +206,7 @@ jobs:
       - name: Run Microsoft Defender for DevOps template analyzer
         id: security_scan
         continue-on-error: true
-        uses: microsoft/security-devops-action@v1
+        uses: microsoft/security-devops-action@v1.12.0
         with:
           tools: templateanalyzer
         env:
