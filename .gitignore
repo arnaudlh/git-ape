@@ -3,3 +3,9 @@
 .azure/*
 !.azure/deployments/
 
+# Docusaurus
+website/node_modules/
+website/.docusaurus/
+website/build/
+website/.cache-loader/
+

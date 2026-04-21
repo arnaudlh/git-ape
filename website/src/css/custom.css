@@ -1,0 +1,31 @@
+/**
+ * Git-Ape Docusaurus Theme
+ * Azure-inspired color palette
+ */
+
+:root {
+  --ifm-color-primary: #0078d4;
+  --ifm-color-primary-dark: #006cbe;
+  --ifm-color-primary-darker: #0065b3;
+  --ifm-color-primary-darkest: #005494;
+  --ifm-color-primary-light: #1a86d9;
+  --ifm-color-primary-lighter: #268fde;
+  --ifm-color-primary-lightest: #4da3e5;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 120, 212, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #4da3e5;
+  --ifm-color-primary-dark: #3695e0;
+  --ifm-color-primary-darker: #2b8ddd;
+  --ifm-color-primary-darkest: #1a73c0;
+  --ifm-color-primary-light: #64b1ea;
+  --ifm-color-primary-lighter: #6fb6ec;
+  --ifm-color-primary-lightest: #93c9f1;
+  --docusaurus-highlighted-code-line-bg: rgba(77, 163, 229, 0.2);
+}
+
+.navbar__logo img {
+  border-radius: 8px;
+}
