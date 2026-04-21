@@ -16,6 +16,37 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Who Is This For?',
+      collapsed: false,
+      items: [
+        'personas/for-executives',
+        'personas/for-engineering-leads',
+        'personas/for-devops',
+        'personas/for-platform-engineering',
+        'personas/for-engineers',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Use Cases',
+      collapsed: false,
+      items: [
+        'use-cases/deploy-function-app',
+        'use-cases/deploy-web-app-sql',
+        'use-cases/deploy-container-app',
+        'use-cases/cost-estimation',
+        'use-cases/security-analysis',
+        'use-cases/waf-review',
+        'use-cases/policy-compliance',
+        'use-cases/drift-detection',
+        'use-cases/import-existing-infra',
+        'use-cases/cicd-pipeline',
+        'use-cases/multi-environment',
+        'use-cases/headless-mode',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Agents',
       collapsed: false,
       items: [

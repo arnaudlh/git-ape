@@ -68,6 +68,24 @@ copilot plugin install Azure/git-ape-private
 
 - [Installation & Prerequisites](./getting-started/installation)
 - [Azure MCP Setup](./getting-started/azure-setup)
+
+### Who Is This For?
+
+- [Executives & CxOs](./personas/for-executives) — governance, cost visibility, compliance
+- [Engineering Leads](./personas/for-engineering-leads) — self-service, architecture standards
+- [DevOps Engineers](./personas/for-devops) — CI/CD pipelines, OIDC, drift detection
+- [Platform Engineers](./personas/for-platform-engineering) — guardrails, naming, policy
+- [Individual Engineers](./personas/for-engineers) — quick start, skill cheatsheet
+
+### Popular Use Cases
+
+- [Deploy a Function App](./use-cases/deploy-function-app)
+- [Security Analysis](./use-cases/security-analysis)
+- [CI/CD Pipeline](./use-cases/cicd-pipeline)
+- [Headless / Coding Agent Mode](./use-cases/headless-mode)
+
+### Deep Dives
+
 - [Agents Overview](./agents/overview)
 - [Skills Overview](./skills/overview)
 - [CI/CD Workflows](./workflows/overview)
