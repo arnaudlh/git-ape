@@ -12,7 +12,7 @@ const config: Config = {
   },
 
   url: 'https://azure.github.io',
-  baseUrl: '/git-ape-private/',
+  baseUrl: '/',
 
   organizationName: 'Azure',
   projectName: 'git-ape-private',
