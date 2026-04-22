@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Git-Ape',
-  tagline: 'Intelligent Azure deployment agent system for GitHub Copilot',
+  tagline: 'Intelligent cloud deployment agent system for GitHub Copilot',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -26,6 +26,11 @@ const config: Config = {
     format: 'md',
   },
   themes: ['@docusaurus/theme-mermaid'],
+
+  stylesheets: [
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
+  ],
 
   i18n: {
     defaultLocale: 'en',
@@ -58,7 +63,15 @@ const config: Config = {
   themeConfig: {
     image: 'img/git-ape-social-card.png',
     colorMode: {
+      defaultMode: 'dark',
       respectPrefersColorScheme: true,
+    },
+    announcementBar: {
+      id: 'experimental_notice',
+      content: '🚀 Git-Ape is experimental — <a href="https://github.com/Azure/git-ape-private/issues">feedback welcome</a>!',
+      backgroundColor: '#667eea',
+      textColor: '#fff',
+      isCloseable: true,
     },
     navbar: {
       title: 'Git-Ape',
@@ -74,13 +87,25 @@ const config: Config = {
           label: 'Documentation',
         },
         {
+          to: '/docs/personas/for-executives',
+          label: 'Who Is This For?',
+          position: 'left',
+        },
+        {
+          to: '/docs/use-cases/deploy-function-app',
+          label: 'Use Cases',
+          position: 'left',
+        },
+        {
           type: 'docsVersionDropdown',
           position: 'right',
         },
         {
           href: 'https://github.com/Azure/git-ape-private',
-          label: 'GitHub',
           position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'GitHub repository',
+          html: '<i class="fab fa-github" style="font-size: 1.3rem;"></i>',
         },
       ],
     },
