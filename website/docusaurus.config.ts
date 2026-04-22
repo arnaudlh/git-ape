@@ -2,6 +2,10 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+const baseUrl =
+  process.env.DOCUSAURUS_BASE_URL ??
+  (process.env.NODE_ENV === 'development' ? '/' : '/git-ape-private/');
+
 const config: Config = {
   title: 'Git-Ape',
   tagline: 'Intelligent cloud deployment agent system for GitHub Copilot',
@@ -12,7 +16,7 @@ const config: Config = {
   },
 
   url: 'https://azure.github.io',
-  baseUrl: '/git-ape-private/',
+  baseUrl,
 
   organizationName: 'Azure',
   projectName: 'git-ape-private',
