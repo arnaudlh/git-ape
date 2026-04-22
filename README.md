@@ -6,7 +6,7 @@
 > EXPERIMENTAL PROJECT: Git-Ape is in active development and is not production-ready.
 > Use it for local development, demos, sandbox subscriptions, and learning only.
 
-**Documentation:** [azure.github.io/git-ape-private](https://azure.github.io/git-ape-private/)
+**Documentation:** [azure.github.io/git-ape](https://azure.github.io/git-ape/) | **Staging:** [azure.github.io/git-ape-private](https://azure.github.io/git-ape-private/)
 
 Git-Ape is a **platform engineering framework** built on GitHub Copilot. It provides a structured, multi-agent system for planning, validating, and deploying Azure infrastructure — with security gates, cost analysis, and CI/CD pipeline integration built in.
 
