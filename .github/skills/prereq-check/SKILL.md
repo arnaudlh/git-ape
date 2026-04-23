@@ -197,7 +197,17 @@ This check is informational only. Never block on its result.
 ```bash
 # Detect @microsoft/azure-skills via Copilot CLI if available
 if command -v copilot &>/dev/null; then
-  if copilot plugin list 2>/dev/null | grep -qi 'azure@azure-skills\|microsoft/azure-skills'; then
+  # The plugin may appear in `copilot plugin list` as `azure`, `azure@azure-skills`,
+  # or `microsoft/azure-skills` depending on how it was installed. Also check the
+  # on-disk install path which is stable across install forms.
+  INSTALLED=false
+  if copilot plugin list 2>/dev/null | grep -qiE '(^|[[:space:]])azure([[:space:]]|@|$)|azure-skills|microsoft/azure-skills'; then
+    INSTALLED=true
+  fi
+  if [[ -d "$HOME/.copilot/installed-plugins/_direct/microsoft--azure-skills" ]]; then
+    INSTALLED=true
+  fi
+  if $INSTALLED; then
     echo "✅ companion @microsoft/azure-skills: installed"
   else
     echo "ℹ️  companion @microsoft/azure-skills: not installed"
