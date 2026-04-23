@@ -6,14 +6,23 @@
   },
   "metadata": {
     "description": "Git-Ape — Intelligent Azure deployment agent and skill suite for GitHub Copilot. Onboard any repository with guided ARM template generation, security analysis, cost estimation, drift detection, and automated CI/CD pipelines.",
-    "version": "0.0.1"
+    "version": "0.1.0"
   },
   "plugins": [
     {
       "name": "git-ape",
       "description": "Intelligent Azure deployment agent system for GitHub Copilot. Provides guided, safe, and validated Azure resource deployments using ARM templates, with built-in security analysis, cost estimation, drift detection, and CI/CD pipeline integration.",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "source": "."
+    },
+    {
+      "name": "azure-skills",
+      "description": "Microsoft-authored Azure capability layer (skills + Azure MCP + Foundry MCP). Recommended companion for Git-Ape: provides /azure-rbac, /azure-prepare, /azure-validate, /azure-diagnostics, and workload-specific Azure skills that Git-Ape delegates to. See docs/AZURE_SKILLS_COMPANION.md.",
+      "version": "latest",
+      "source": "https://github.com/microsoft/azure-skills",
+      "upstream": true,
+      "required": false
     }
   ]
 }
+

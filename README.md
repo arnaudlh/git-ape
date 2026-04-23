@@ -61,6 +61,17 @@ Manual option:
 2. Open it in VS Code with GitHub Copilot enabled.
 3. Confirm the agents appear in chat.
 
+### 1b. Install the companion plugin (recommended)
+
+Git-Ape delegates some skills (RBAC, validation, diagnostics, workload-specific guidance) to the [@microsoft/azure-skills](https://github.com/microsoft/azure-skills) companion plugin.
+
+```bash
+copilot plugin marketplace add microsoft/azure-skills
+copilot plugin install azure@azure-skills
+```
+
+See [docs/AZURE_SKILLS_COMPANION.md](docs/AZURE_SKILLS_COMPANION.md) for details and alternative runtimes (VS Code, Claude Code, Gemini CLI).
+
 ### 2. Configure Azure access
 
 1. Install Azure CLI and sign in with `az login`.
@@ -88,6 +99,8 @@ Use @git-ape to clean up afterwards by using:
 - [docs/DEPLOYMENT_STATE.md](docs/DEPLOYMENT_STATE.md): How deployment artifacts are stored and reused.
 - [docs/ONBOARDING.md](docs/ONBOARDING.md): Repository onboarding, OIDC, RBAC, and GitHub environment setup.
 - [docs/CODESPACES.md](docs/CODESPACES.md): GitHub Codespaces and dev container setup.
+- [docs/AZURE_SKILLS_COMPANION.md](docs/AZURE_SKILLS_COMPANION.md): `@microsoft/azure-skills` companion plugin integration.
+- [docs/investigations/azure-skills-plugin.md](docs/investigations/azure-skills-plugin.md): Overlap analysis and decision log for the companion integration.
 
 ## Architecture
 
@@ -134,13 +147,15 @@ Skills are invoked by agents at specific stages. Each skill handles one focused 
 | | `/azure-resource-availability` | SKU restrictions, version support, API compatibility, quota |
 | | `/azure-security-analyzer` | Per-resource security assessment with blocking gate |
 | | `/azure-deployment-preflight` | What-if analysis and permission checks before deploy |
-| | `/azure-role-selector` | Least-privilege RBAC role recommendations |
+| | `/azure-rbac` ⁑ | Least-privilege RBAC role recommendations (replaces deprecated `/azure-role-selector`) |
 | | `/azure-cost-estimator` | Real-time cost estimation via Azure Retail Prices API |
 | | `/prereq-check` | Verify required CLI tools and auth sessions are ready |
 | **Post-Deploy** | `/azure-integration-tester` | Post-deployment health checks and endpoint tests |
-| | `/azure-resource-visualizer` | Generate Mermaid diagrams from live Azure resources |
+| | `/git-ape-resource-visualizer` | Generate Mermaid diagrams from Git-Ape-managed resources (renamed to avoid collision with upstream `/azure-resource-visualizer`) |
 | **Operations** | `/azure-drift-detector` | Detect config drift between live Azure and stored state |
 | | `/git-ape-onboarding` | Guided setup for OIDC, RBAC, environments, and secrets |
+
+> ⁑ Skills marked with ⁑ are provided by the [@microsoft/azure-skills](https://github.com/microsoft/azure-skills) companion plugin. See [docs/AZURE_SKILLS_COMPANION.md](docs/AZURE_SKILLS_COMPANION.md) to install it.
 
 ### Deployment Flow
 
@@ -157,7 +172,7 @@ graph TD
     S1 --> S2
 
     S2["<b>Stage 2: Template & Analysis</b><br/>Template Generator produces ARM +<br/>architecture + cost + security report"]
-    SK2["/azure-security-analyzer<br/>/azure-deployment-preflight<br/>/azure-cost-estimator<br/>/azure-role-selector"]
+    SK2["/azure-security-analyzer<br/>/azure-deployment-preflight<br/>/azure-cost-estimator<br/>/azure-rbac ⁑"]
 
     S2 -. skills .-> SK2
     S2 --> GATE
@@ -176,7 +191,7 @@ graph TD
     S3 --> S4
 
     S4["<b>Stage 4: Validate</b><br/>Health checks, endpoint tests, diagram"]
-    SK4["/azure-integration-tester<br/>/azure-resource-visualizer"]
+    SK4["/azure-integration-tester<br/>/git-ape-resource-visualizer"]
 
     S4 -. skills .-> SK4
 ```
@@ -245,11 +260,11 @@ plugin.json                          # Plugin manifest
 │   ├── azure-resource-availability/ # SKU & quota checks
 │   ├── azure-security-analyzer/     # Security assessment
 │   ├── azure-deployment-preflight/  # What-if analysis
-│   ├── azure-role-selector/         # RBAC recommendations
+│   ├── azure-role-selector/         # DEPRECATED — shim forwarding to upstream /azure-rbac
 │   ├── azure-cost-estimator/        # Cost estimation
 │   ├── azure-drift-detector/        # Drift detection
 │   ├── azure-integration-tester/    # Post-deploy tests
-│   └── azure-resource-visualizer/   # Architecture diagrams
+│   └── git-ape-resource-visualizer/ # Architecture diagrams (renamed from azure-resource-visualizer)
 └── workflows/
     ├── git-ape-plan.yml
     ├── git-ape-deploy.yml

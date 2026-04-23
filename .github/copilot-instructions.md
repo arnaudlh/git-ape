@@ -311,7 +311,7 @@ When a deployment fails, **never weaken security controls to fix it**. Specifica
 - Use AAD-only authentication for SQL databases (`azureADOnlyAuthentication: true`)
 - Use Key Vault references for secrets in app settings (`@Microsoft.KeyVault(...)`)
 - Enable diagnostic logging and monitoring
-- Apply least-privilege RBAC roles (use `/azure-role-selector` skill)
+- Apply least-privilege RBAC roles (use `/azure-rbac` skill from `@microsoft/azure-skills`; the local `/azure-role-selector` skill is deprecated and forwards to `/azure-rbac`)
 - Disable FTP on all App Services and Function Apps (`ftpsState: Disabled`)
 - Set minimum TLS version to 1.2 on all resources
 

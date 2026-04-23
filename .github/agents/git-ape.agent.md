@@ -122,9 +122,11 @@ Coordinate the deployment of Azure resources by delegating to specialized subage
 - `/azure-deployment-preflight` — What-if analysis and preflight validation
 - `/azure-integration-tester` — Post-deployment health checks and endpoint tests
 - `/azure-drift-detector` — Configuration drift detection and reconciliation
-- `/azure-resource-visualizer` — Live Azure resource group diagramming
-- `/azure-role-selector` — Least-privilege RBAC role recommendations
+- `/git-ape-resource-visualizer` — Live Azure resource group diagramming for Git-Ape-managed deployments (renamed from `/azure-resource-visualizer` to avoid collision with the upstream skill of the same name in `@microsoft/azure-skills`)
+- `/azure-rbac` † — Least-privilege RBAC role recommendations (from `@microsoft/azure-skills`; replaces deprecated local `/azure-role-selector`)
 - `/azure-cost-estimator` — Real-time cost estimation via Azure Retail Prices API
+
+> † Skills marked with † are provided by the [@microsoft/azure-skills](https://github.com/microsoft/azure-skills) companion plugin. If it is not installed, prompt the user to install it (see `docs/AZURE_SKILLS_COMPANION.md`) rather than fabricating the output locally.
 
 ## Pre-Deployment Drift Check (Optional)
 
@@ -369,7 +371,7 @@ The deployer will:
 
 **Invoke skills:**
 - `/azure-integration-tester` — Run health checks and endpoint tests
-- `/azure-resource-visualizer` — Generate live architecture diagram from deployed resources
+- `/git-ape-resource-visualizer` — Generate live architecture diagram from deployed resources
 
 Run post-deployment validation:
 - Health endpoint checks for Function Apps and App Services
@@ -412,10 +414,10 @@ When user asks for architecture review, WAF assessment, or trade-off analysis:
 4. Can review existing deployments or proposed configurations
 
 ### RBAC Role Selection
-**Invoke skill:** `/azure-role-selector`
+**Invoke skill:** `/azure-rbac` (from `@microsoft/azure-skills`; replaces deprecated local `/azure-role-selector`)
 
 When deploying resources with managed identities or when user asks about permissions:
-1. Invoke the role selector skill with the desired permissions
+1. Invoke `/azure-rbac` with the desired permissions. If `@microsoft/azure-skills` is not installed, stop and prompt the user to install it per `docs/AZURE_SKILLS_COMPANION.md`.
 2. It recommends least-privilege built-in roles
 3. Provides ready-to-use CLI commands and ARM template snippets
 4. Can create custom role definitions if no built-in role matches

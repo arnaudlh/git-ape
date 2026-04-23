@@ -1,13 +1,15 @@
 ---
-name: azure-resource-visualizer
-description: "Analyze deployed Azure resource groups and generate detailed Mermaid architecture diagrams showing relationships between resources. Use for post-deployment visualization, understanding existing infrastructure, or documenting live Azure environments."
-argument-hint: "Resource group name to visualize"
+name: git-ape-resource-visualizer
+description: "Analyze deployed Azure resource groups tracked by Git-Ape and generate Mermaid architecture diagrams that include Git-Ape deployment-state context (.azure/deployments/<id>/state.json). Use for post-deployment visualization, drift comparison, and documenting Git-Ape-managed environments. For generic (non-Git-Ape) resource-group visualization, prefer the upstream `/azure-resource-visualizer` skill from @microsoft/azure-skills."
+argument-hint: "Resource group name or deployment id to visualize"
 user-invocable: true
 ---
 
-# Azure Resource Visualizer
+# Git-Ape Resource Visualizer
 
 Analyze deployed Azure resource groups and generate comprehensive Mermaid architecture diagrams showing resource relationships, configurations, and data flows.
+
+Renamed from `azure-resource-visualizer` in v0.1 to resolve the name collision with the upstream [@microsoft/azure-skills](https://github.com/microsoft/azure-skills) `azure-resource-visualizer` skill. This Git-Ape variant is tightly coupled to the Git-Ape deployment-state contract (`.azure/deployments/<id>/state.json` and `architecture.md`). For generic resource-group visualization outside of a Git-Ape deployment, use the upstream `/azure-resource-visualizer` skill instead.
 
 Adapted from [github/awesome-copilot](https://github.com/github/awesome-copilot) `azure-resource-visualizer` skill.
 
@@ -157,17 +159,17 @@ Generate a markdown file named `{rg-name}-architecture.md`:
 
 **Post-deployment visualization:**
 ```
-Deployment succeeds → /azure-resource-visualizer {rg-name} → Live architecture diagram
+Deployment succeeds → /git-ape-resource-visualizer {rg-name} → Live architecture diagram
 ```
 
 **Drift detection enhancement:**
 ```
-/azure-drift-detector detects drift → /azure-resource-visualizer → Compare expected vs actual diagram
+/azure-drift-detector detects drift → /git-ape-resource-visualizer → Compare expected vs actual diagram
 ```
 
 **Import workflow:**
 ```
-/azure-iac-exporter imports resources → /azure-resource-visualizer → Document imported architecture
+/azure-iac-exporter imports resources → /git-ape-resource-visualizer → Document imported architecture
 ```
 
 ## Constraints

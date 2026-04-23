@@ -2,7 +2,7 @@
 
 Tracking issue: [Azure/git-ape#13](https://github.com/Azure/git-ape/issues/13)
 
-Status: Research & report (Scope A). No code, manifest, or workflow changes made in this PR.
+Status: Scope A (research) shipped in initial commit; Scope B+ (replace overlapping skills, packaging Options 1/2/4, POC) shipped in follow-up commits on this branch.
 
 ## 1. Executive summary
 
@@ -148,12 +148,16 @@ Decisions are proposals for maintainer sign-off. "Delegate" means the local Git-
 | Criterion | Status | Notes |
 |---|---|---|
 | Finalized overlap/gap matrix | ✅ Drafted (§4) | Awaiting maintainer sign-off |
-| Adopt / embed / delegate decision | ✅ Drafted (§5.2) | Phase 1 = sibling plugin |
-| PoC in 3 runtimes | ⬜ Deferred to Phase 2 | Plan in §6 |
+| Adopt / embed / delegate decision | ✅ Drafted (§5.2) | Phase 1 = sibling plugin; Options 1/2/4 implemented |
+| PoC in 3 runtimes | 🟡 Documentation POC shipped ([azure-skills-plugin-poc.md](azure-skills-plugin-poc.md)) | Runtime validation in VS Code / CLI / Coding Agent still pending |
 | Auth verified (az login + OIDC) | ⬜ Deferred to Phase 2 | Plan in §6–7 |
-| `azure-resource-visualizer` collision resolved | 📝 Proposed rename to `git-ape-resource-visualizer` | No code change yet |
-| No regression in plan/deploy/verify/destroy | ✅ Design preserves contract (§9) | Validate during Phase 2 PoC |
-| Updates to `plugin.json`, `marketplace.json`, README, prereq-check | ⬜ Deferred | Scoped into follow-up issues |
+| `azure-resource-visualizer` collision resolved | ✅ Renamed local skill to `git-ape-resource-visualizer` | Breaking for existing users; release-note-worthy |
+| `azure-role-selector` deprecation | ✅ Shim in place, forwards to `/azure-rbac` | Scheduled for removal in next minor |
+| Companion install documented | ✅ [docs/AZURE_SKILLS_COMPANION.md](../AZURE_SKILLS_COMPANION.md) | Option 1 |
+| Declared dependency in `plugin.json` | ✅ `recommends[]` field added | Option 2; schema-speculative, see caveats in POC doc |
+| Companion listed in `marketplace.json` | ✅ Added as second plugin entry | Option 4; `upstream: true`, `required: false` |
+| No regression in plan/deploy/verify/destroy | 🟡 Design preserves contract (§9); runtime validation deferred | — |
+| Updates to `plugin.json`, `marketplace.json`, README, prereq-check | ✅ All shipped on this branch | — |
 | Follow-up issues filed | ⬜ To be opened after this PR merges | See §11 |
 
 ## 11. Proposed follow-up child issues

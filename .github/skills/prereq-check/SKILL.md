@@ -24,6 +24,11 @@ Validates the local environment has the CLI tools and auth sessions needed to ru
 | GitHub CLI | `gh` | 2.0 | Repo secrets, environments, PR operations |
 | jq | `jq` | 1.6 | JSON parsing in scripts and workflows |
 | git | `git` | any | Version control (usually pre-installed) |
+| Node.js | `node` / `npx` | 18 | Required by the `@microsoft/azure-skills` companion plugin (MCP servers launched via `npx`) |
+
+## Recommended companion plugin
+
+Git-Ape delegates RBAC, validation, readiness, diagnostics, and workload-specific skills to the [@microsoft/azure-skills](https://github.com/microsoft/azure-skills) companion plugin. It is **recommended, not required** — but most Git-Ape flows will prompt you to install it at the point of need. `/prereq-check` reports its presence as an advisory check (never blocking).
 
 ## Execution Playbook
 
@@ -76,6 +81,19 @@ if command -v git &>/dev/null; then
 else
   echo "git: NOT FOUND"
 fi
+
+# --- node / npx — required, minimum 18 (for @microsoft/azure-skills MCP servers) ---
+if command -v node &>/dev/null; then
+  NODE_VER=$(node --version 2>/dev/null | sed 's/^v//')
+  echo "node: $NODE_VER"
+else
+  echo "node: NOT FOUND"
+fi
+if command -v npx &>/dev/null; then
+  echo "npx: present"
+else
+  echo "npx: NOT FOUND (ships with Node.js ≥ 5.2)"
+fi
 ```
 
 ### Step 3: Present Results
@@ -88,6 +106,7 @@ Show a table with pass/fail status:
 | gh   | ✅ / ❌ | x.y.z        | 2.0              |
 | jq   | ✅ / ❌ | x.y          | 1.6              |
 | git  | ✅ / ❌ | x.y.z        | any              |
+| node | ✅ / ❌ | x.y.z        | 18               |
 
 Mark a tool ❌ if it is missing OR below the minimum version.
 
@@ -101,6 +120,7 @@ brew install azure-cli   # az
 brew install gh           # GitHub CLI
 brew install jq           # jq
 brew install git          # git (if missing)
+brew install node         # node + npx (for @microsoft/azure-skills)
 ```
 
 **Ubuntu / Debian:**
@@ -119,6 +139,10 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
 # jq
 sudo apt-get install -y jq
+
+# Node.js 18+ (NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
 ```
 
 **RHEL / Fedora:**
@@ -132,6 +156,10 @@ sudo dnf install -y gh
 
 # jq
 sudo dnf install -y jq
+
+# Node.js 20 (NodeSource)
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
 ```
 
 **Windows (PowerShell with winget):**
@@ -139,6 +167,7 @@ sudo dnf install -y jq
 winget install Microsoft.AzureCLI
 winget install GitHub.cli
 winget install jqlang.jq
+winget install OpenJS.NodeJS.LTS
 ```
 
 > **Windows note:** AutoCloud skills require a BASH shell. Install [Git for Windows](https://gitforwindows.org/) and use git-bash.
@@ -158,6 +187,28 @@ fi
 gh auth status 2>/dev/null
 if [[ $? -ne 0 ]]; then
   echo "❌ Not logged in to GitHub. Run: gh auth login"
+fi
+```
+
+### Step 5b: Check companion plugin (advisory)
+
+This check is informational only. Never block on its result.
+
+```bash
+# Detect @microsoft/azure-skills via Copilot CLI if available
+if command -v copilot &>/dev/null; then
+  if copilot plugin list 2>/dev/null | grep -qi 'azure@azure-skills\|microsoft/azure-skills'; then
+    echo "✅ companion @microsoft/azure-skills: installed"
+  else
+    echo "ℹ️  companion @microsoft/azure-skills: not installed"
+    echo "    Install with:"
+    echo "      /plugin marketplace add microsoft/azure-skills"
+    echo "      /plugin install azure@azure-skills"
+    echo "    See docs/AZURE_SKILLS_COMPANION.md for other runtimes."
+  fi
+else
+  echo "ℹ️  copilot CLI not available — cannot auto-detect companion plugin."
+  echo "    If you are on VS Code, install the Azure MCP Extension from the marketplace."
 fi
 ```
 
