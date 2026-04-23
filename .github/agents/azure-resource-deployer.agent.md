@@ -108,21 +108,33 @@ Use mcp_azure_mcp_search with "deploy" intent to execute template deployment
 
 **Option B: Azure CLI (Fallback)**
 
-**Always use subscription-level deployment** — the ARM template includes resource group creation, so we deploy at subscription scope:
+**Always deploy as an Azure Deployment Stack at subscription scope** — the ARM template includes resource group creation, and Stacks give us idempotent multi-scope lifecycle management with a single destroy call:
 
 ```bash
-# Subscription-level deployment (creates RG + all resources atomically)
-az deployment sub create \
+# Subscription-scope Deployment Stack (creates RG + all resources atomically,
+# tracked as a single lifecycle unit).
+az stack sub create \
   --name "{deployment-id}" \
   --location {location} \
   --template-file {template.json} \
   --parameters @{parameters.json} \
+  --action-on-unmanage deleteAll \
+  --deny-settings-mode none \
+  --description "Git-Ape deployment {deployment-id}" \
+  --tags "managedBy=git-ape" "deploymentId={deployment-id}" \
+  --yes \
   --output json
 ```
 
-**DO NOT use `az deployment group create`** — our templates always include the resource group as a resource. Subscription-level deployment handles everything in one command.
+**Why Stacks (and not `az deployment sub create`):**
+- The stack is the single unit of lifecycle — one create, one update, one destroy.
+- `--action-on-unmanage deleteAll` guarantees destroy removes every managed resource across every scope (subscription, multiple RGs, sub-scope role/policy assignments) in one synchronous call.
+- No orphans, idempotent re-runs, no soft-deleted surprises hiding in the subscription after an RG-delete.
+- See [Azure/git-ape#30](https://github.com/Azure/git-ape/issues/30) for the rationale.
 
-Capture the deployment operation ID for tracking.
+**DO NOT use `az deployment group create` or `az deployment sub create`** — always go through the stack.
+
+Capture the `stackId` from the response — it becomes the single source of truth stored in `state.json` for the destroy workflow.
 
 ### 3. Monitor Progress
 
@@ -330,16 +342,16 @@ if [[ "$USER_CHOICE" == "A" ]]; then
   read CONFIRMATION
   
   if [[ "$CONFIRMATION" == "confirm rollback" ]]; then
-    # Delete resources
-    az resource delete --ids {resource-id-1} {resource-id-2}
-    
-    # If RG was created new, delete it
-    if [[ "$RG_NEW" == "true" ]]; then
-      az group delete --name {rg-name} --yes --no-wait
-    fi
-    
+    # Delete the deployment stack — this removes every managed resource
+    # across all scopes (RGs, sub-scope role assignments, etc.) in one call.
+    az stack sub delete \
+      --name "{deployment-id}" \
+      --action-on-unmanage deleteAll \
+      --bypass-stack-out-of-sync-error true \
+      --yes
+
     # Log rollback
-    echo "Rollback completed" >> .azure/deployments/{deployment-id}/deployment.log
+    echo "Rollback completed (stack deleted)" >> .azure/deployments/{deployment-id}/deployment.log
   fi
 fi
 ```

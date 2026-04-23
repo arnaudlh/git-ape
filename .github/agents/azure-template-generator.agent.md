@@ -135,7 +135,7 @@ see [git-ape.agent.md](git-ape.agent.md).
 - Resource Group is a `Microsoft.Resources/resourceGroups` resource inside the template
 - Other resources go inside a nested `Microsoft.Resources/deployments` with `"resourceGroup"` property
 - Use `subscriptionResourceId()` for RG references, regular `resourceId()` inside nested
-- Deploy with `az deployment sub create` (not `az deployment group create`)
+- Deploy with `az stack sub create --action-on-unmanage deleteAll` (not `az deployment group create` or `az deployment sub create`)
 - `uniqueString()` uses `subscription().subscriptionId` instead of `resourceGroup().id`
 
 **Nested Template Requirements:**
@@ -660,25 +660,32 @@ After showing the preview, provide the complete ARM template:
 
 ## Deployment Commands
 
-**Azure CLI (Subscription-level deployment):**
+**Always deploy as an Azure Deployment Stack at subscription scope.** Stacks track every resource the template creates (across every scope) as a single lifecycle unit, so destroy is one idempotent call. See [Azure/git-ape#30](https://github.com/Azure/git-ape/issues/30).
+
+**Azure CLI (Deployment Stack at subscription scope):**
 ```bash
-az deployment sub create \
+az stack sub create \
   --name {deployment-id} \
   --location {location} \
   --template-file template.json \
-  --parameters @parameters.json
+  --parameters @parameters.json \
+  --action-on-unmanage deleteAll \
+  --deny-settings-mode none \
+  --yes
 ```
 
 **PowerShell:**
 ```powershell
-New-AzSubscriptionDeployment `
+New-AzSubscriptionDeploymentStack `
   -Name {deployment-id} `
   -Location {location} `
   -TemplateFile template.json `
-  -TemplateParameterFile parameters.json
+  -TemplateParameterFile parameters.json `
+  -ActionOnUnmanage deleteAll `
+  -DenySettingsMode none
 ```
 
-**Note:** We use subscription-level deployments so the resource group is created as part of the template. No need to create the RG separately.
+**Note:** We deploy as a **subscription-scope Deployment Stack** so the resource group is created as part of the template and the whole deployment becomes a single lifecycle unit. Destroy with `az stack sub delete --action-on-unmanage deleteAll`.
 ````
 
 ## Constraints
