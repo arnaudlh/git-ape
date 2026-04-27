@@ -5,7 +5,20 @@
 > Do **not** use Git-Ape in production environments.
 > Validate all generated configuration manually before any real deployment.
 
-Set up a GitHub repository to use Git-Ape's CI/CD pipelines for Azure deployments. This guide covers Entra ID (Azure AD) configuration, OIDC federation, RBAC, and GitHub repository setup.
+Set up a repository to use Git-Ape's CI/CD pipelines for Azure deployments. This guide covers Entra ID (Azure AD) configuration, OIDC federation, RBAC, and repository setup for both **GitHub Actions** and **Azure DevOps Pipelines**.
+
+## Choosing your CI/CD provider
+
+Git-Ape supports two CI/CD providers behind a single onboarding entry point. Pick the one that matches where your repository and pipelines already live.
+
+| Provider | Repository host | Pipelines location | Approval gate | Auth |
+|----------|-----------------|--------------------|---------------|------|
+| **GitHub Actions** | GitHub | `.github/workflows/git-ape-*.yml` | PR review + `/deploy` comment | OIDC federated identity (`azure/login@v2`) |
+| **Azure DevOps Pipelines** | Azure Repos or GitHub | `.azure-pipelines/git-ape-*.yml` | ADO Environment pre-deployment approval | Workload identity federation service connection |
+
+Select the provider during onboarding via the `cicd` parameter on `/git-ape-onboarding` (`github`, `ado`, or `both`). Both providers reuse the same Entra ID App Registration, so you can switch later or run both side-by-side without re-creating identities.
+
+> **Note:** ADO mode replaces the GitHub-specific `/deploy` PR-comment trigger with an ADO Environment approval check; SARIF upload (GitHub Advanced Security) is not available in ADO mode and is replaced with a pipeline-artifact verification report.
 
 Git-Ape supports two onboarding modes:
 
@@ -611,6 +624,21 @@ az account list --query "[?tenantId=='$TENANT_ID']" -o table
 ### GitHub environment not created
 
 Environment creation requires admin access to the repository. Ask a repo admin to create the `azure-deploy` and `azure-destroy` environments manually via **Settings → Environments**.
+
+### "TF400813: The user is not authorized to access this resource" or "Service connection authorization failed" (Azure DevOps mode)
+
+The pipeline's service connection cannot reach Azure. Diagnose in this order:
+
+1. **Verify workload identity federation is set up correctly:**
+   ```bash
+   az ad app federated-credential list --id "$CLIENT_ID" \
+     --query "[?contains(issuer, 'vstoken.dev.azure.com')].{name:name, issuer:issuer, subject:subject}" \
+     -o table
+   ```
+   The `subject` must match `sc://<organization>/<project>/<service-connection-name>` exactly.
+2. **Confirm the service connection is authorized for the pipeline.** In ADO, open **Project Settings → Service connections → {name} → Security** and grant access to the pipeline (or check "Grant access permission to all pipelines").
+3. **Confirm the build identity has Contribute permission** on the target repository (required for posting PR thread comments).
+4. **Check RBAC** on the Azure subscription with `az role assignment list --assignee "$CLIENT_ID" -o table` — the same role assignments power both providers.
 
 ---
 
