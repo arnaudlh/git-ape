@@ -171,7 +171,7 @@ Git-Ape provides three GitHub Actions workflows under `.github/workflows/`:
 **What it does:**
 1. Detects which deployment directories changed in the PR
 2. Logs into Azure via OIDC
-3. Validates each ARM template (`az deployment sub validate`)
+3. Validates each ARM template (`az stack sub validate`)
 4. Runs what-if analysis (`az deployment sub what-if`)
 5. Reads the architecture diagram from the deployment directory
 6. Posts a detailed plan as a **PR comment** (validation result + what-if + architecture)
@@ -192,11 +192,16 @@ Git-Ape provides three GitHub Actions workflows under `.github/workflows/`:
 **What it does:**
 1. Detects deployment directories to execute
 2. Logs into Azure via OIDC
-3. Validates the template one more time
-4. Runs `az deployment sub create` to deploy
+3. Validates the template one more time (`az stack sub validate`)
+4. Deploys as an **Azure Deployment Stack** (`az stack sub create --action-on-unmanage deleteAll`)
 5. Runs integration tests (lists deployed resources, tests HTTP endpoints)
-6. Commits `state.json` with deployment result back to the repo
+6. Commits `state.json` (including `stackId` and `managedResources[]`) back to the repo
 7. Posts deployment result as a PR comment (on `/deploy` trigger)
+
+**Why Deployment Stacks:**
+- The stack is the single unit of lifecycle — create, update, and destroy operate on it, not on the underlying RGs.
+- `deleteAll` on unmanage guarantees destruction cleans up every managed resource across every scope (subscription, multiple RGs, role/policy assignments at sub scope) in one call. No orphans, idempotent re-runs.
+- See [Azure/git-ape#30](https://github.com/Azure/git-ape/issues/30) for the rationale.
 
 **Requires:** GitHub environment `azure-deploy` (for environment protection rules)
 
@@ -213,10 +218,14 @@ Git-Ape provides three GitHub Actions workflows under `.github/workflows/`:
 
 **What it does:**
 1. Detects deployments where `metadata.json` status changed to `destroy-requested`
-2. Reads `state.json` to find the resource group name
-3. Inventories all resources in the resource group
-4. Deletes the resource group (`az group delete` — synchronous, waits for completion)
+2. Reads `state.json` to find the deployment stack name (`deploymentId`) and `stackId`
+3. Calls `az stack sub show` to inventory the stack's managed resources
+4. Calls `az stack sub delete --action-on-unmanage deleteAll` — removes every resource the stack manages, across all scopes, in one synchronous call
 5. Updates `state.json` and `metadata.json` with `destroyed` status and commits to repo
+
+**Idempotency:**
+- If the stack is already gone, the workflow records `already-destroyed` and succeeds cleanly.
+- No RG-delete fallback path, no subscription-scope resource sweep — Stacks handle multi-scope destruction natively.
 
 **Destroy flow:**
 1. Agent or user creates a PR that sets `metadata.json` status to `destroy-requested`
@@ -413,10 +422,14 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Deploy
         run: |
-          az deployment sub create \
+          az stack sub create \
+            --name ${{ env.DEPLOYMENT_ID }} \
             --location ${{ env.LOCATION }} \
             --template-file .azure/deployments/${{ env.DEPLOYMENT_ID }}/template.json \
-            --parameters @.azure/deployments/${{ env.DEPLOYMENT_ID }}/parameters.json
+            --parameters @.azure/deployments/${{ env.DEPLOYMENT_ID }}/parameters.json \
+            --action-on-unmanage deleteAll \
+            --deny-settings-mode none \
+            --yes
 ```
 
 **Transitioning from Service Principal secrets to OIDC:**

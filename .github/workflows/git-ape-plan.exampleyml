@@ -353,16 +353,21 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Validate template
+      - name: Validate template (stack)
         id: validate
         if: steps.azure_login.outcome == 'success'
         run: |
-          echo "### Validating ARM template..."
+          echo "### Validating deployment stack..."
 
-          RESULT=$(az deployment sub validate \
+          # az stack sub validate mirrors az deployment sub validate but also
+          # verifies stack-specific settings (action-on-unmanage, deny settings).
+          RESULT=$(az stack sub validate \
+            --name "${{ matrix.deployment_id }}" \
             --location "${{ steps.params.outputs.location }}" \
             --template-file "${{ steps.params.outputs.deploy_dir }}/template.json" \
             --parameters @"${{ steps.params.outputs.deploy_dir }}/parameters.json" \
+            --action-on-unmanage deleteAll \
+            --deny-settings-mode none \
             --output json 2>&1) || true
 
           # Guard against non-JSON output (e.g. auth/CLI errors) — jq exits non-zero
@@ -388,6 +393,11 @@ jobs:
         id: whatif
         if: steps.validate.outputs.validation_status == 'passed'
         run: |
+          # NOTE: Deployment Stacks don't yet support what-if
+          # (see https://learn.microsoft.com/azure/azure-resource-manager/bicep/deployment-stacks#known-issues).
+          # We fall back to `az deployment sub what-if` against the underlying
+          # ARM template — this accurately previews resource changes even though
+          # it doesn't model the stack wrapper itself.
           WHATIF_OUTPUT=$(az deployment sub what-if \
             --location "${{ steps.params.outputs.location }}" \
             --template-file "${{ steps.params.outputs.deploy_dir }}/template.json" \

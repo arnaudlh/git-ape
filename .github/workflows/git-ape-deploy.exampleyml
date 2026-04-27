@@ -195,12 +195,15 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Validate before deploy
+      - name: Validate before deploy (stack)
         run: |
-          az deployment sub validate \
+          az stack sub validate \
+            --name "${{ matrix.deployment_id }}" \
             --location "${{ steps.params.outputs.location }}" \
             --template-file "${{ steps.params.outputs.deploy_dir }}/template.json" \
             --parameters @"${{ steps.params.outputs.deploy_dir }}/parameters.json" \
+            --action-on-unmanage deleteAll \
+            --deny-settings-mode none \
             --output json
 
       - name: Run Microsoft Defender for DevOps template analyzer
@@ -234,17 +237,26 @@ jobs:
             echo "Security scan passed — no errors found"
           fi
 
-      - name: Deploy to Azure
+      - name: Deploy to Azure (Deployment Stack)
         id: deploy
         run: |
-          echo "🚀 Starting deployment: ${{ matrix.deployment_id }}"
+          STACK_NAME="${{ matrix.deployment_id }}"
+          echo "🚀 Starting stack deployment: $STACK_NAME"
           START_TIME=$(date +%s)
 
-          DEPLOY_OUTPUT=$(az deployment sub create \
-            --name "${{ matrix.deployment_id }}" \
+          # Create/update the subscription-scope Deployment Stack.
+          # --action-on-unmanage deleteAll binds the whole stack (RG + contents)
+          # to a single lifecycle so destroy is idempotent across all scopes.
+          DEPLOY_OUTPUT=$(az stack sub create \
+            --name "$STACK_NAME" \
             --location "${{ steps.params.outputs.location }}" \
             --template-file "${{ steps.params.outputs.deploy_dir }}/template.json" \
             --parameters @"${{ steps.params.outputs.deploy_dir }}/parameters.json" \
+            --action-on-unmanage deleteAll \
+            --deny-settings-mode none \
+            --description "Git-Ape deployment $STACK_NAME" \
+            --tags "managedBy=git-ape" "deploymentId=$STACK_NAME" \
+            --yes \
             --output json 2>&1)
 
           EXIT_CODE=$?
@@ -260,27 +272,40 @@ jobs:
             echo "EOF" >> "$GITHUB_OUTPUT"
             echo ""
             echo "=========================================="
-            echo "❌ DEPLOYMENT FAILED"
+            echo "❌ STACK DEPLOYMENT FAILED"
             echo "=========================================="
             echo "$DEPLOY_OUTPUT"
             echo "=========================================="
-            echo "::error::Deployment failed — see output above for details"
+            echo "::error::Stack deployment failed — see output above for details"
             exit 1
           fi
 
           echo "deploy_status=succeeded" >> "$GITHUB_OUTPUT"
 
-          # Extract outputs
-          OUTPUTS=$(echo "$DEPLOY_OUTPUT" | jq -r '.properties.outputs // {}')
+          # Capture the stack resource id — this is the single source of truth
+          # for destroy. Stored in state.json as `stackId`.
+          STACK_ID=$(echo "$DEPLOY_OUTPUT" | jq -r '.id // empty')
+          echo "stack_id=$STACK_ID" >> "$GITHUB_OUTPUT"
+
+          # Extract template outputs from the stack
+          OUTPUTS=$(echo "$DEPLOY_OUTPUT" | jq -r '.outputs // .properties.outputs // {}')
           echo "deploy_outputs<<EOF" >> "$GITHUB_OUTPUT"
           echo "$OUTPUTS" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-          # Extract resource group name
+          # Extract resource group name (for integration tests)
           RG_NAME=$(echo "$OUTPUTS" | jq -r '.resourceGroupName.value // empty')
           echo "resource_group=$RG_NAME" >> "$GITHUB_OUTPUT"
 
-          echo "✅ Deployment succeeded in ${DURATION}s"
+          # Capture the list of managed resources from the stack — this is the
+          # authoritative manifest for everything the stack will delete on destroy.
+          MANAGED=$(echo "$DEPLOY_OUTPUT" | jq -c '[(.resources // .properties.resources // [])[] | {id: .id, status: .status}]')
+          echo "managed_resources<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$MANAGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          echo "✅ Stack deployed in ${DURATION}s — stackId: $STACK_ID"
+          echo "   Managed resources: $(echo "$MANAGED" | jq 'length')"
 
       - name: Run integration tests
         id: tests
@@ -349,25 +374,49 @@ jobs:
           DEPLOY_DIR="${{ steps.params.outputs.deploy_dir }}"
           STATUS="${{ steps.deploy.outputs.deploy_status || 'failed' }}"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          STACK_ID='${{ steps.deploy.outputs.stack_id }}'
+          MANAGED='${{ steps.deploy.outputs.managed_resources }}'
+          MANAGED=${MANAGED:-[]}
 
-          # Create/update state.json
-          cat > "$DEPLOY_DIR/state.json" <<EOF
-          {
-            "deploymentId": "${{ matrix.deployment_id }}",
-            "timestamp": "$TIMESTAMP",
-            "status": "$STATUS",
-            "duration": "${{ steps.deploy.outputs.deploy_duration }}",
-            "subscription": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-            "location": "${{ steps.params.outputs.location }}",
-            "project": "${{ steps.params.outputs.project }}",
-            "environment": "${{ steps.params.outputs.environment }}",
-            "resourceGroup": "${{ steps.deploy.outputs.resource_group }}",
-            "triggeredBy": "${{ github.actor }}",
-            "triggerEvent": "${{ github.event_name }}",
-            "runId": "${{ github.run_id }}",
-            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }
-          EOF
+          # state.json schema v1 — Deployment Stacks edition.
+          # `stackId` is the single source of truth for destroy.
+          # `managedResources` is a snapshot captured at deploy time so the
+          # repo retains a human-readable manifest of what the stack owns.
+          jq -n \
+            --arg schemaVersion "1.0" \
+            --arg deploymentId "${{ matrix.deployment_id }}" \
+            --arg timestamp "$TIMESTAMP" \
+            --arg status "$STATUS" \
+            --arg duration "${{ steps.deploy.outputs.deploy_duration }}" \
+            --arg subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            --arg location "${{ steps.params.outputs.location }}" \
+            --arg project "${{ steps.params.outputs.project }}" \
+            --arg environment "${{ steps.params.outputs.environment }}" \
+            --arg resourceGroup "${{ steps.deploy.outputs.resource_group }}" \
+            --arg stackId "$STACK_ID" \
+            --argjson managedResources "$MANAGED" \
+            --arg triggeredBy "${{ github.actor }}" \
+            --arg triggerEvent "${{ github.event_name }}" \
+            --arg runId "${{ github.run_id }}" \
+            --arg runUrl "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{
+              schemaVersion: $schemaVersion,
+              deploymentId: $deploymentId,
+              timestamp: $timestamp,
+              status: $status,
+              duration: $duration,
+              subscription: $subscription,
+              location: $location,
+              project: $project,
+              environment: $environment,
+              resourceGroup: $resourceGroup,
+              stackId: (if $stackId == "" then null else $stackId end),
+              managedResources: $managedResources,
+              triggeredBy: $triggeredBy,
+              triggerEvent: $triggerEvent,
+              runId: $runId,
+              runUrl: $runUrl
+            }' > "$DEPLOY_DIR/state.json"
 
       - name: Commit deployment state
         if: always()

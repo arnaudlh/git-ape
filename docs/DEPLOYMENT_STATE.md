@@ -75,11 +75,55 @@ Contains deployment tracking information:
 - `gathering-requirements` - Collecting user input
 - `generating-template` - Creating ARM template
 - `awaiting-confirmation` - Waiting for user approval
-- `deploying` - Deployment in progress
+- `deploying` - Deployment in progress (stack create/update)
 - `testing` - Running integration tests
-- `succeeded` - Completed successfully
+- `succeeded` - Stack deployed successfully
 - `failed` - Deployment failed
-- `rolled-back` - Resources removed after failure
+- `destroy-requested` - Teardown requested (triggers `git-ape-destroy.yml`)
+- `destroyed` - Deployment stack deleted with `--action-on-unmanage deleteAll`
+- `already-destroyed` - Destroy ran but the stack was already gone (idempotent path)
+- `destroy-failed` - Destroy workflow errored
+
+### state.json (Deployment Stack manifest)
+
+Written by `git-ape-deploy.yml` after each deploy. This is the **single source of truth** that `git-ape-destroy.yml` reads to tear down a deployment.
+
+Every Git-Ape deployment is an [Azure Deployment Stack](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deployment-stacks) at subscription scope, created with `--action-on-unmanage deleteAll`. The stack owns every resource across every scope (RG, multiple RGs, sub-scope role/policy assignments, …), so destroy is one idempotent call regardless of how the template evolves.
+
+```json
+{
+  "schemaVersion": "1.0",
+  "deploymentId": "deploy-20260218-143022",
+  "timestamp": "2026-02-18T14:33:00Z",
+  "status": "succeeded",
+  "duration": "216s",
+  "subscription": "ece04c6f-d78a-4c30-b05e-fd68b5733289",
+  "location": "francecentral",
+  "project": "arna1",
+  "environment": "dev",
+  "resourceGroup": "rg-arna1-dev-francecentral",
+  "stackId": "/subscriptions/ece.../providers/Microsoft.Resources/deploymentStacks/deploy-20260218-143022",
+  "managedResources": [
+    { "id": "/subscriptions/.../resourceGroups/rg-arna1-dev-francecentral", "status": "succeeded" },
+    { "id": "/subscriptions/.../resourceGroups/.../Microsoft.KeyVault/vaults/kv-arna1-dev-frc", "status": "succeeded" },
+    { "id": "/subscriptions/.../resourceGroups/.../Microsoft.Network/virtualNetworks/vnet-arna1-dev-francecentral", "status": "succeeded" }
+  ],
+  "triggeredBy": "arnaudlh",
+  "triggerEvent": "issue_comment",
+  "runId": "1234567890",
+  "runUrl": "https://github.com/Azure/git-ape/actions/runs/1234567890"
+}
+```
+
+| Field | Purpose |
+|-------|---------|
+| `schemaVersion` | State file format version (`1.0` = Stacks-based) |
+| `stackId` | Resource id of the deployment stack — **destroy reads this** |
+| `managedResources[]` | Snapshot of what the stack owns at deploy time (human-readable manifest) |
+| `resourceGroup` | Primary RG name (for integration tests / portal links) |
+| `subscription`, `location`, `project`, `environment` | Deployment context |
+
+**Why stacks and not just `az deployment sub create`?** See [Azure/git-ape#30](https://github.com/Azure/git-ape/issues/30). TL;DR: plain subscription deployments leave orphans behind when a deployment spans multiple RGs or creates sub-scope resources via nested templates. Stacks handle multi-scope destruction natively with a single `az stack sub delete --action-on-unmanage deleteAll`.
 
 ### requirements.json
 
