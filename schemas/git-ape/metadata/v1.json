@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Azure/git-ape/schemas/git-ape/metadata/v1.json",
+  "title": "Git-Ape metadata.json (v1)",
+  "description": "Deployment metadata written by the agent during planning, updated as the deployment progresses through the lifecycle. Lives at .azure/deployments/<id>/metadata.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "deploymentId",
+    "timestamp",
+    "status",
+    "scope"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,89}$",
+      "minLength": 1,
+      "maxLength": 90
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "user": {
+      "type": "string",
+      "description": "Email or principal name of the deployment author."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "initialized",
+        "gathering-requirements",
+        "generating-template",
+        "awaiting-confirmation",
+        "deploying",
+        "testing",
+        "succeeded",
+        "failed",
+        "rolled-back",
+        "destroy-requested",
+        "destroyed",
+        "already-destroyed",
+        "partially-destroyed",
+        "retained-soft-deleted"
+      ]
+    },
+    "statusReason": {
+      "type": ["string", "null"],
+      "description": "Human-readable reason for the current status; populated for failed/destroyed states."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["new", "import", "update", "destroy"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["interactive", "headless"]
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["subscription", "resourceGroup", "managementGroup", "tenant"]
+    },
+    "region": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{2,29}$"
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "staging", "prod"]
+    },
+    "deployMethod": {
+      "type": "string",
+      "enum": ["stack", "subscription"]
+    },
+    "resourceGroup": {
+      "type": "string",
+      "maxLength": 90,
+      "description": "Primary resource group name. Empty string when not yet known."
+    },
+    "resourceGroups": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 90 },
+      "uniqueItems": true
+    },
+    "resources": {
+      "type": "array",
+      "description": "Top-level resources known to the deployment. Mirrors the resources[] array in the ARM template at planning time.",
+      "items": {
+        "type": "object",
+        "required": ["type", "name"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9]+\\.[A-Za-z0-9]+/[A-Za-z0-9]+(/[A-Za-z0-9]+)*$"
+          },
+          "name": { "type": "string", "minLength": 1 },
+          "id": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "provisioning", "succeeded", "failed", "deleted"]
+          }
+        }
+      }
+    },
+    "resourceCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of top-level resources in the template."
+    },
+    "resourceTypes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9]+\\.[A-Za-z0-9]+/[A-Za-z0-9]+(/[A-Za-z0-9]+)*$"
+      },
+      "uniqueItems": true
+    },
+    "estimatedMonthlyCost": {
+      "oneOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "string", "pattern": "^\\$?[0-9]+(\\.[0-9]{1,4})?$" }
+      ],
+      "description": "Snapshot of the cost estimate at planning time. Number form preferred."
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "createdBy": {
+      "type": "string"
+    }
+  }
+}

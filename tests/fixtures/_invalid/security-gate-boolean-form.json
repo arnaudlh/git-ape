@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../schemas/git-ape/security-gate/v1.json",
+  "schemaVersion": "1.0",
+  "gate": "PASSED",
+  "iterations": 1,
+  "criticalPassed": true,
+  "highPassed": true,
+  "blockingFindings": [],
+  "generatedAt": "2026-05-06T08:20:00Z"
+}

@@ -1,0 +1,17 @@
+# yamllint config used by .github/workflows/git-ape-ci.yml.
+# Kept intentionally permissive in this PR; future PRs may tighten rules.
+extends: default
+
+rules:
+  line-length: disable
+  comments-indentation: disable
+  document-start: disable
+  truthy:
+    allowed-values: ['true', 'false', 'on']
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  braces:
+    max-spaces-inside: 1
+  brackets:
+    max-spaces-inside: 1

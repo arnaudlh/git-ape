@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Azure/git-ape/schemas/git-ape/policy-recommendations/v1.json",
+  "title": "Git-Ape policy-recommendations.json (v1)",
+  "description": "Output of the azure-policy-advisor skill: per-resource policy recommendations and subscription-level policy assignment proposals.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "deploymentId",
+    "generatedAt",
+    "framework",
+    "enforcementMode",
+    "recommendations"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "1.0" },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,89}$"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "framework": {
+      "type": "string",
+      "description": "Compliance framework used to evaluate the template (e.g. 'azure-best-practices', 'cis-azure-v3.0', 'nist-sp-800-53-r5').",
+      "minLength": 1
+    },
+    "enforcementMode": {
+      "type": "string",
+      "enum": ["Audit", "Deny", "Disabled", "DoNotEnforce"],
+      "description": "Default enforcement effect proposed for new policy assignments."
+    },
+    "subscriptionAssignments": {
+      "type": "array",
+      "description": "Currently assigned policies discovered at the target subscription scope (informational; included for context).",
+      "items": {
+        "type": "object",
+        "required": ["assignmentId", "policyDefinitionId"],
+        "properties": {
+          "assignmentId": { "type": "string" },
+          "policyDefinitionId": { "type": "string" },
+          "displayName": { "type": "string" },
+          "effect": {
+            "type": "string",
+            "enum": ["Audit", "AuditIfNotExists", "Deny", "DeployIfNotExists", "Modify", "Disabled", "DoNotEnforce"]
+          },
+          "scope": { "type": "string" }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "title", "policyDefinitionId", "category", "effect"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "severity": {
+            "type": "string",
+            "enum": ["Critical", "High", "Medium", "Low", "Informational"]
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "policyDefinitionId": {
+            "type": "string",
+            "description": "Built-in policy definition ID or relative path. Free-form to accommodate custom definitions; emitters SHOULD use the full ARM ID for built-ins."
+          },
+          "category": {
+            "type": "string",
+            "examples": ["identity", "networking", "storage", "compute", "monitoring", "tagging"]
+          },
+          "effect": {
+            "type": "string",
+            "enum": ["Audit", "AuditIfNotExists", "Deny", "DeployIfNotExists", "Modify", "Disabled", "DoNotEnforce"]
+          },
+          "appliesTo": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9]+\\.[A-Za-z0-9]+/[A-Za-z0-9]+(/[A-Za-z0-9]+)*$"
+                },
+                "resourceName": { "type": "string" }
+              }
+            }
+          },
+          "implementation": {
+            "type": "object",
+            "properties": {
+              "templateChange": { "type": "string" },
+              "subscriptionAssignment": { "type": "string" }
+            },
+            "description": "Two implementation options surfaced by the advisor: in-template change vs subscription-level assignment."
+          },
+          "evidence": { "type": "string" },
+          "reference": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "critical": { "type": "integer", "minimum": 0 },
+        "high": { "type": "integer", "minimum": 0 },
+        "medium": { "type": "integer", "minimum": 0 },
+        "low": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

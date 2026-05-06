@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../schemas/git-ape/cost-estimate/v1.json",
+  "schemaVersion": "1.0",
+  "deploymentId": "stack-storage-eastus-001",
+  "generatedAt": "2026-05-06T08:15:00Z",
+  "currency": "USD",
+  "region": "eastus",
+  "monthlyTotal": 4.32,
+  "monthlyTotalRange": {
+    "low": 3.10,
+    "high": 6.50
+  },
+  "assumptions": [
+    "storage: 100 GB hot tier, LRS redundancy",
+    "transactions: 100k reads + 10k writes per month"
+  ],
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "stdemodev8k3m",
+      "sku": "Standard_LRS",
+      "region": "eastus",
+      "monthlyCost": 4.32,
+      "currency": "USD",
+      "meterId": "00000000-0000-0000-0000-aaaaaaaaaaaa",
+      "unitPrice": 0.0184,
+      "unitOfMeasure": "1 GB/Month",
+      "estimatedQuantity": 100,
+      "notes": "Hot tier, LRS, 100 GB baseline"
+    }
+  ]
+}

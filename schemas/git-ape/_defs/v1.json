@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Azure/git-ape/schemas/git-ape/_defs/v1.json",
+  "title": "Git-Ape Shared Definitions (v1)",
+  "description": "Canonical shared types referenced (or duplicated until cross-file $refs are wired) by every per-artifact schema in schemas/git-ape/<artifact>/v1.json.",
+  "$defs": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Major.minor version of the artifact schema. Patch versions are not used."
+    },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,89}$",
+      "minLength": 1,
+      "maxLength": 90,
+      "description": "Folder name under .azure/deployments/. Lowercase alphanumerics, hyphens, periods, underscores. 1-90 characters."
+    },
+    "azureSubscription": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Azure subscription ID (GUID)."
+    },
+    "azureLocation": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{2,29}$",
+      "description": "Azure region in lowercase short form (e.g. eastus, westus2, francecentral). No display-name form (no spaces, no capitalisation)."
+    },
+    "armResourceId": {
+      "type": "string",
+      "pattern": "^/subscriptions/[0-9a-f-]{36}(/resourceGroups/[A-Za-z0-9._()-]+)?(/providers/[^/]+/[^/]+(/[^/]+(/[^/]+/[^/]+)*)?)?$",
+      "description": "Full Azure Resource Manager resource ID. Subscription-scope resources omit /resourceGroups/."
+    },
+    "armResourceType": {
+      "type": "string",
+      "pattern": "^Microsoft\\.[A-Za-z0-9]+/[A-Za-z0-9]+(/[A-Za-z0-9]+)*$",
+      "description": "ARM resource type, e.g. Microsoft.KeyVault/vaults."
+    },
+    "iso8601DateTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 date-time. Date-only forms (YYYY-MM-DD) are not accepted; emitters MUST normalise to date-time during write."
+    },
+    "cafAbbreviation": {
+      "type": "string",
+      "pattern": "^[a-z]{1,8}$",
+      "description": "Cloud Adoption Framework resource abbreviation (e.g. rg, func, st, asp, app, sql, sqldb, cosmos, appi, kv, log, cae, ca). Pattern is permissive to accommodate new abbreviations from the official CAF list."
+    },
+    "environmentTier": {
+      "type": "string",
+      "enum": ["dev", "staging", "prod"],
+      "description": "Deployment environment tier."
+    },
+    "deploymentStatus": {
+      "type": "string",
+      "enum": [
+        "initialized",
+        "gathering-requirements",
+        "generating-template",
+        "awaiting-confirmation",
+        "deploying",
+        "testing",
+        "succeeded",
+        "failed",
+        "rolled-back",
+        "destroy-requested",
+        "destroyed",
+        "already-destroyed",
+        "partially-destroyed",
+        "retained-soft-deleted"
+      ],
+      "description": "Deployment lifecycle status. Mirrors the state machine in website/docs/deployment/state.md."
+    },
+    "softDeletableType": {
+      "type": "string",
+      "enum": [
+        "Microsoft.KeyVault/vaults",
+        "Microsoft.CognitiveServices/accounts",
+        "Microsoft.AppConfiguration/configurationStores",
+        "Microsoft.ApiManagement/service",
+        "Microsoft.MachineLearningServices/workspaces",
+        "Microsoft.RecoveryServices/vaults"
+      ],
+      "description": "Azure resource types that support soft-delete and require explicit purge handling on destroy."
+    },
+    "deployMethod": {
+      "type": "string",
+      "enum": ["stack", "subscription"],
+      "description": "Deployment method used. 'stack' = Azure Deployment Stacks (preferred). 'subscription' = legacy az deployment sub create."
+    },
+    "currencyCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 currency code (e.g. USD, EUR)."
+    },
+    "severityLevel": {
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low", "Informational"],
+      "description": "Severity rating for security and policy findings."
+    },
+    "policyEffect": {
+      "type": "string",
+      "enum": ["Audit", "AuditIfNotExists", "Deny", "DeployIfNotExists", "Modify", "Disabled", "DoNotEnforce"],
+      "description": "Azure Policy effect. Mirrors the values supported by Azure Policy assignments."
+    }
+  }
+}

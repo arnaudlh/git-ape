@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../schemas/git-ape/requirements/v1.json",
+  "schemaVersion": "1.0",
+  "deploymentId": "stack-storage-eastus-001",
+  "timestamp": "2026-05-06T08:10:00Z",
+  "source": "github-issue",
+  "mode": "interactive",
+  "description": "Deploy a Storage Account in East US for the demo project, dev environment, with HTTPS-only and TLS 1.2 minimum.",
+  "user": "arnaudlh",
+  "type": "single-resource",
+  "constraints": {
+    "region": "eastus",
+    "budget": 25,
+    "securityLevel": "high",
+    "compliance": ["azure-best-practices"]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "stdemodev8k3m",
+      "displayName": "Demo Storage",
+      "kind": "StorageV2",
+      "region": "eastus",
+      "resourceGroup": "rg-demo-dev-eastus",
+      "cafAbbreviation": "st",
+      "sku": "Standard_LRS",
+      "configuration": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2",
+        "allowSharedKeyAccess": false
+      }
+    }
+  ],
+  "dependencies": [],
+  "validation": {
+    "subscriptionAccess": true,
+    "resourceGroupExists": false,
+    "namesAvailable": true,
+    "regionSupported": true,
+    "quotaAvailable": true
+  },
+  "estimatedCost": 4.32
+}

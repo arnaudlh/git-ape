@@ -1,0 +1,3 @@
+Placeholder for bash↔PowerShell emitter parity tests.
+
+These tests will land in a follow-up PR after #44 (the deploy-stack / destroy-stack scripts) merges into main. The plan: invoke both bash and PowerShell emitters with identical inputs and assert their state.json output is byte-for-byte equivalent (modulo timestamp).

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Azure/git-ape/schemas/git-ape/plugin/v1.json",
+  "title": "Git-Ape plugin.json (v1)",
+  "description": "Schema for plugin.json — the chat-agents-plugin manifest at the repo root. plugin.json predates Git-Ape's per-artifact schemaVersion convention; this schema validates the manifest format consumed by the VS Code Copilot extension.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "description",
+    "version",
+    "author"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Plugin identifier. Lowercase, hyphens, digits."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.-]+)?(\\+[A-Za-z0-9.-]+)?$",
+      "description": "Semantic version (semver 2.0.0). Pre-release and build metadata accepted."
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "format": "email" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "repository": {
+      "oneOf": [
+        { "type": "string", "format": "uri" },
+        {
+          "type": "object",
+          "required": ["url"],
+          "properties": {
+            "type": { "type": "string" },
+            "url": { "type": "string", "format": "uri" }
+          }
+        }
+      ]
+    },
+    "bugs": {
+      "oneOf": [
+        { "type": "string", "format": "uri" },
+        {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "email": { "type": "string", "format": "email" }
+          }
+        }
+      ]
+    },
+    "license": {
+      "type": "string"
+    },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "maxItems": 32
+    },
+    "agents": {
+      "type": "string",
+      "description": "Relative path to the directory containing agent files."
+    },
+    "skills": {
+      "type": "string",
+      "description": "Relative path to the directory containing skill files."
+    },
+    "prompts": {
+      "type": "string",
+      "description": "Relative path to the directory containing prompt files."
+    },
+    "instructions": {
+      "type": "string",
+      "description": "Relative path to the directory containing instruction files."
+    },
+    "icon": {
+      "type": "string"
+    },
+    "engines": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Minimum compatible runtime versions, e.g. {\"vscode\": \">=1.95.0\"}."
+    }
+  }
+}

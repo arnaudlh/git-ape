@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/git-ape/security-gate/v1.json",
+  "schemaVersion": "1.0",
+  "gate": "PASSED",
+  "iterations": 2,
+  "criticalTotal": 5,
+  "criticalPassed": 5,
+  "highTotal": 8,
+  "highPassed": 8,
+  "mediumTotal": 3,
+  "mediumPassed": 2,
+  "lowTotal": 1,
+  "lowPassed": 1,
+  "blockingFindings": [],
+  "overrideReason": null,
+  "overriddenBy": null,
+  "generatedAt": "2026-05-06T08:20:00Z",
+  "deploymentId": "stack-storage-eastus-001"
+}
