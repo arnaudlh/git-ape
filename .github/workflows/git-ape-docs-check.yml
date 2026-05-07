@@ -1,4 +1,4 @@
-name: "Git-Ape: Docs Check"
+name: "Git-Ape: PR Checks"
 
 on:
   pull_request:
@@ -11,13 +11,37 @@ on:
       - '.github/workflows/git-ape-verify.yml'
       - '.github/plugin/**'
       - 'plugin.json'
+      - 'scripts/validate-structure.js'
+      - 'scripts/generate-docs.js'
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
+  structure:
+    name: "Structural Validation"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: website
+        run: npm ci
+
+      - name: Run structural validation
+        run: node scripts/validate-structure.js
+
   check-docs:
+    name: "Docs Staleness"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
