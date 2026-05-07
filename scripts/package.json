@@ -1,0 +1,16 @@
+{
+  "name": "git-ape-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal scripts for repository validation and tooling.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "validate": "node validate-structure.js"
+  },
+  "dependencies": {
+    "gray-matter": "4.0.3"
+  }
+}

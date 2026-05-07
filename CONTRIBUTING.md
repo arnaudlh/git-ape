@@ -121,13 +121,14 @@ Agent files live in `.github/agents/` and require:
 git clone https://github.com/Azure/git-ape.git
 cd git-ape
 
-# Install website dependencies (needed for validation script)
-cd website && npm ci && cd ..
+# Install validation script dependencies
+cd scripts && npm ci && cd ..
 
 # Run structural validation
 node scripts/validate-structure.js
 
 # Generate documentation (optional)
+cd website && npm ci && cd ..
 node scripts/generate-docs.js
 ```
 

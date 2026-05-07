@@ -18,9 +18,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Resolve deps from website/node_modules since they're installed there
-const WEBSITE_DIR = path.resolve(__dirname, '..', 'website');
-const matter = require(path.join(WEBSITE_DIR, 'node_modules', 'gray-matter'));
+// gray-matter is declared in scripts/package.json so this script has its own
+// dependency boundary, independent of the website build.
+const matter = require('gray-matter');
 
 const ROOT = path.resolve(__dirname, '..');
 const AGENTS_DIR = path.join(ROOT, '.github', 'agents');
