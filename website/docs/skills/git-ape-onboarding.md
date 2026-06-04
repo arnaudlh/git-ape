@@ -44,7 +44,7 @@ This skill configures:
 2. OIDC federated credentials for GitHub Actions
 3. RBAC role assignment(s) on subscription scope
 4. GitHub environments (`azure-deploy*`, `azure-destroy`)
-5. Required GitHub secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`)
+5. Required GitHub secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`) and the `AZURE_SUBSCRIPTION_ID` variable
 6. Scaffolded GitHub Actions workflow files (`git-ape-plan.yml`, `-deploy.yml`, `-destroy.yml`, `-verify.yml`, `-drift.{md,lock.yml}`) and deployment standards (`.github/copilot-instructions.md`) into the user's working copy
 
 ## Prerequisites
@@ -123,7 +123,7 @@ OIDC_PREFIX="repository_owner_id:<OWNER_ID>:repository_id:<REPO_ID>"
    - `fc-azure-deploy`    subject `"$OIDC_PREFIX:environment:azure-deploy"` (one per environment in multi-env mode)
    - `fc-azure-destroy`   subject `"$OIDC_PREFIX:environment:azure-destroy"`
 6. Assign RBAC on each target subscription.
-7. Set GitHub repo or environment secrets.
+7. Set GitHub repo or environment secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`) and the `AZURE_SUBSCRIPTION_ID` variable.
 8. Create GitHub environments and branch policies when permissions allow.
 9. Scaffold workflow files and deployment standards into the user's working copy (see below).
 10. Capture compliance and Azure Policy preferences (see below).

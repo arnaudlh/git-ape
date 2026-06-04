@@ -402,7 +402,9 @@ OIDC eliminates stored secrets by exchanging a short-lived GitHub token for an A
 **Required GitHub secrets** (NOT actual credentials — just identifiers):
 - `AZURE_CLIENT_ID` — App Registration's Application (client) ID
 - `AZURE_TENANT_ID` — Azure AD tenant ID
-- `AZURE_SUBSCRIPTION_ID` — Target subscription ID
+
+**Required GitHub variable:**
+- `AZURE_SUBSCRIPTION_ID` — Target subscription ID (a repository/environment *variable*, read via `vars.`)
 
 **Workflow snippet:**
 ```yaml
@@ -419,7 +421,7 @@ jobs:
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Deploy
         run: |
           az stack sub create \
