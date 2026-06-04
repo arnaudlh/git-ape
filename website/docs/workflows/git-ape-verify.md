@@ -64,25 +64,31 @@ jobs:
 
       - name: Check required secrets
         id: secrets
+        env:
+          # Route secret/variable presence through env booleans rather than inlining
+          # ${{ secrets.* }} into shell conditionals (GitHub Actions hardening).
+          HAS_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID != '' }}
+          HAS_TENANT_ID: ${{ secrets.AZURE_TENANT_ID != '' }}
+          HAS_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID != '' }}
         run: |
           MISSING=0
 
-          if [[ -z "${{ secrets.AZURE_CLIENT_ID }}" ]]; then
+          if [[ "$HAS_CLIENT_ID" != "true" ]]; then
             echo "::error::Missing secret: AZURE_CLIENT_ID"
             MISSING=$((MISSING + 1))
           else
             echo "✅ AZURE_CLIENT_ID is set"
           fi
 
-          if [[ -z "${{ secrets.AZURE_TENANT_ID }}" ]]; then
+          if [[ "$HAS_TENANT_ID" != "true" ]]; then
             echo "::error::Missing secret: AZURE_TENANT_ID"
             MISSING=$((MISSING + 1))
           else
             echo "✅ AZURE_TENANT_ID is set"
           fi
 
-          if [[ -z "${{ vars.AZURE_SUBSCRIPTION_ID }}" ]]; then
-            echo "::error::Missing secret: AZURE_SUBSCRIPTION_ID"
+          if [[ "$HAS_SUBSCRIPTION_ID" != "true" ]]; then
+            echo "::error::Missing variable: AZURE_SUBSCRIPTION_ID"
             MISSING=$((MISSING + 1))
           else
             echo "✅ AZURE_SUBSCRIPTION_ID is set"
@@ -101,6 +107,8 @@ jobs:
 
       - name: Verify Azure access
         if: steps.secrets.outputs.missing == '0'
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
           echo "## Azure Connection"
           echo ""
@@ -118,7 +126,7 @@ jobs:
           # Check RBAC roles
           echo ""
           echo "## RBAC Roles"
-          SP_ID=$(az ad sp show --id "${{ secrets.AZURE_CLIENT_ID }}" --query id -o tsv 2>/dev/null || echo "")
+          SP_ID=$(az ad sp show --id "$AZURE_CLIENT_ID" --query id -o tsv 2>/dev/null || echo "")
           if [[ -n "$SP_ID" ]]; then
             az role assignment list --assignee "$SP_ID" \
               --query "[].{role:roleDefinitionName, scope:scope}" -o table
@@ -162,8 +170,8 @@ jobs:
             "git-ape-plan.yml:Git-Ape: Plan"
             "git-ape-deploy.yml:Git-Ape: Deploy"
             "git-ape-destroy.yml:Git-Ape: Destroy"
-            "git-ape-drift.yml:Git-Ape: Drift Detection"
-            "git-ape-ttl-reaper.yml:Git-Ape: TTL Reaper"
+            "git-ape-verify.yml:Git-Ape: Verify Setup"
+            "git-ape-drift.lock.yml:Git-Ape: Drift Detection"
           )
 
           for WF in "${WORKFLOWS[@]}"; do

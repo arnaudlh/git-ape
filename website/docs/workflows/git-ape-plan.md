@@ -114,9 +114,13 @@ jobs:
 
       - name: Find deployment directories with changes
         id: find
+        env:
+          # Route attacker-controllable context through env, never inline into the
+          # shell — base_ref is part of the PR payload (GitHub Actions hardening).
+          BASE_REF: ${{ github.base_ref }}
         run: |
           # Find all deployment directories that have template.json changes in this PR
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '.azure/deployments/*/template.json' '.azure/deployments/*/parameters.json')
+          CHANGED_FILES=$(git diff --name-only "origin/${BASE_REF}...HEAD" -- '.azure/deployments/*/template.json' '.azure/deployments/*/parameters.json')
 
           if [[ -z "$CHANGED_FILES" ]]; then
             echo "has_deployments=false" >> "$GITHUB_OUTPUT"
@@ -761,10 +765,9 @@ jobs:
               comment += `### Architecture\n\n${architectureContent}\n\n`;
             }
 
-            if (validationStatus === 'passed' && whatifResult) {
-              comment += `### What-If Analysis\n\n`;
-              comment += `\`\`\`\n${whatifResult}\n\`\`\`\n\n`;
-            } else if (whatifStatus === 'passed' && whatifResult) {
+            // What-if rendering is driven solely by whatifStatus — validation and
+            // what-if are decoupled gates that catch different classes of issues.
+            if (whatifStatus === 'passed' && whatifResult) {
               comment += `### What-If Analysis\n\n`;
               comment += `\`\`\`\n${whatifResult}\n\`\`\`\n\n`;
             } else if (whatifStatus === 'failed') {

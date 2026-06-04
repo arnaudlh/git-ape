@@ -216,16 +216,25 @@ jobs:
             echo "[$(date -u +%H:%M:%S)] No prior stack — this is a NEW deployment."
           fi
 
-          # Also snapshot the previous template from git (parent commit of this merge
-          # or origin/main for /deploy comment). Used to redeploy last-known-good on failure.
+          # Also snapshot the previous template from git. The last-known-good
+          # baseline differs per trigger:
+          #   push          → HEAD~1 is the pre-merge state of main.
+          #   /deploy comment → we are on the PR head ref, so HEAD~1 is the PR
+          #                     commit's parent (NOT last-known-good); use origin/main.
           DEPLOY_DIR="${{ steps.params.outputs.deploy_dir }}"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            BASELINE_REF="HEAD~1"
+          else
+            git fetch origin main --depth=1 >/dev/null 2>&1 || true
+            BASELINE_REF="origin/main"
+          fi
           mkdir -p /tmp/rollback
-          if git show HEAD~1:"$DEPLOY_DIR/template.json" > /tmp/rollback/template.json 2>/dev/null; then
+          if git show "$BASELINE_REF:$DEPLOY_DIR/template.json" > /tmp/rollback/template.json 2>/dev/null; then
             cp "$DEPLOY_DIR/parameters.json" /tmp/rollback/parameters.json 2>/dev/null || true
-            # Prefer the previous parameters if they exist at HEAD~1
-            git show HEAD~1:"$DEPLOY_DIR/parameters.json" > /tmp/rollback/parameters.json 2>/dev/null || true
+            # Prefer the previous parameters if they exist at the baseline ref
+            git show "$BASELINE_REF:$DEPLOY_DIR/parameters.json" > /tmp/rollback/parameters.json 2>/dev/null || true
             echo "prior_template_available=true" >> "$GITHUB_OUTPUT"
-            echo "[$(date -u +%H:%M:%S)] Previous template captured from HEAD~1 → /tmp/rollback/"
+            echo "[$(date -u +%H:%M:%S)] Previous template captured from $BASELINE_REF → /tmp/rollback/"
             echo "    template bytes: $(wc -c < /tmp/rollback/template.json)"
           else
             echo "prior_template_available=false" >> "$GITHUB_OUTPUT"
@@ -531,13 +540,22 @@ jobs:
 
       - name: Save deployment state
         if: always()
+        env:
+          # Pass step outputs through env so JSON payloads can't break shell quoting
+          # or inject commands (GitHub Actions hardening).
+          STACK_ID: ${{ steps.deploy.outputs.stack_id }}
+          MANAGED_RESOURCES: ${{ steps.deploy.outputs.managed_resources }}
         run: |
           DEPLOY_DIR="${{ steps.params.outputs.deploy_dir }}"
           STATUS="${{ steps.deploy.outputs.deploy_status || 'failed' }}"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          STACK_ID='${{ steps.deploy.outputs.stack_id }}'
-          MANAGED='${{ steps.deploy.outputs.managed_resources }}'
-          MANAGED=${MANAGED:-[]}
+          # Default to an empty array and validate the snapshot parses as JSON
+          # before handing it to jq --argjson.
+          MANAGED="${MANAGED_RESOURCES:-[]}"
+          if ! echo "$MANAGED" | jq empty 2>/dev/null; then
+            echo "::warning::managed_resources output was not valid JSON — storing empty array"
+            MANAGED="[]"
+          fi
 
           # state.json schema v1 — Deployment Stacks edition.
           # `stackId` is the single source of truth for destroy.
