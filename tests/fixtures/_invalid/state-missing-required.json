@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../schemas/git-ape/state/v1.json",
+  "schemaVersion": "1.0",
+  "deploymentId": "stack-broken",
+  "timestamp": "2026-05-06T08:30:00Z",
+  "user": "arnaudlh@example.com",
+  "status": "succeeded",
+  "subscription": "00000000-0000-0000-0000-000000000001",
+  "location": "eastus",
+  "deployMethod": "stack"
+}

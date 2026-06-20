@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../schemas/git-ape/state/v1.json",
+  "schemaVersion": "1.0",
+  "deploymentId": "stack-storage-eastus-001",
+  "timestamp": "2026-05-06T08:30:00Z",
+  "user": "arnaudlh@example.com",
+  "status": "succeeded",
+  "duration": "182s",
+  "subscription": "00000000-0000-0000-0000-000000000001",
+  "location": "eastus",
+  "project": "demo",
+  "environment": "dev",
+  "resourceGroup": "rg-demo-dev-eastus",
+  "triggeredBy": "arnaudlh",
+  "triggerEvent": "pull_request",
+  "runId": "12345678901",
+  "runUrl": "https://github.com/arnaudlh/git-ape/actions/runs/12345678901",
+  "stackId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Resources/deploymentStacks/stack-storage-eastus-001",
+  "deployMethod": "stack",
+  "managedResources": [
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-demo-dev-eastus",
+      "type": "Microsoft.Resources/resourceGroups",
+      "scope": "subscription",
+      "apiVersion": "2024-03-01",
+      "softDeletable": false,
+      "purgeProtected": false
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-demo-dev-eastus/providers/Microsoft.Storage/storageAccounts/stdemodev8k3m",
+      "type": "Microsoft.Storage/storageAccounts",
+      "scope": "resourceGroup",
+      "apiVersion": "2023-05-01",
+      "softDeletable": false,
+      "purgeProtected": false
+    }
+  ],
+  "resourceGroups": ["rg-demo-dev-eastus"],
+  "subscriptions": ["00000000-0000-0000-0000-000000000001"],
+  "externalReferences": []
+}

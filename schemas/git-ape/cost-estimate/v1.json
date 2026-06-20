@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Azure/git-ape/schemas/git-ape/cost-estimate/v1.json",
+  "title": "Git-Ape cost-estimate.json (v1)",
+  "description": "Per-resource monthly cost estimate produced by the azure-cost-estimator skill from the Azure Retail Prices API.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "deploymentId",
+    "generatedAt",
+    "currency",
+    "monthlyTotal",
+    "resources"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "1.0" },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,89}$"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 currency code. Defaults to USD."
+    },
+    "region": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{2,29}$"
+    },
+    "monthlyTotal": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Sum of resources[].monthlyCost. Reported separately to avoid divergence."
+    },
+    "monthlyTotalRange": {
+      "type": "object",
+      "properties": {
+        "low": { "type": "number", "minimum": 0 },
+        "high": { "type": "number", "minimum": 0 }
+      },
+      "required": ["low", "high"],
+      "description": "Optional confidence interval when usage assumptions vary."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Documented assumptions baked into the estimate (e.g. 'compute: 730 hours/month always-on')."
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "name", "monthlyCost"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9]+\\.[A-Za-z0-9]+/[A-Za-z0-9]+(/[A-Za-z0-9]+)*$"
+          },
+          "name": { "type": "string", "minLength": 1 },
+          "sku": { "type": ["string", "object"] },
+          "region": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]{2,29}$"
+          },
+          "monthlyCost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "meterId": {
+            "type": "string",
+            "description": "Azure Retail Prices API meter ID (when known)."
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unitOfMeasure": {
+            "type": "string"
+          },
+          "estimatedQuantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

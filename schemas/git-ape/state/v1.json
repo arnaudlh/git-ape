@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Azure/git-ape/schemas/git-ape/state/v1.json",
+  "title": "Git-Ape state.json (v1)",
+  "description": "Runtime deployment state captured after `az deployment sub create` or `az stack sub create` completes. Used by destroy workflows to determine teardown strategy. Documented in website/docs/deployment/state.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "deploymentId",
+    "timestamp",
+    "status",
+    "subscription",
+    "location",
+    "deployMethod",
+    "managedResources"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor-only hint; CI ignores this and selects the schema by file name."
+    },
+    "schemaVersion": {
+      "const": "1.0",
+      "description": "Pinned to 1.0 for this schema. Bump together with this file."
+    },
+    "deploymentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,89}$",
+      "minLength": 1,
+      "maxLength": 90
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "user": {
+      "type": "string",
+      "description": "Optional. Email or principal name of the human/service that triggered the deployment."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "initialized",
+        "gathering-requirements",
+        "generating-template",
+        "awaiting-confirmation",
+        "deploying",
+        "testing",
+        "succeeded",
+        "failed",
+        "rolled-back",
+        "destroy-requested",
+        "destroyed",
+        "already-destroyed",
+        "partially-destroyed",
+        "retained-soft-deleted"
+      ]
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^([0-9]+s)?$",
+      "description": "Wall-clock duration of the deployment in `Xs` form (e.g. `210s`). Empty string when not yet known (failed before completion)."
+    },
+    "subscription": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "location": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{2,29}$"
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "staging", "prod"]
+    },
+    "resourceGroup": {
+      "type": "string",
+      "description": "Primary resource group name. Empty string when subscription-scope deployment created no RGs.",
+      "maxLength": 90
+    },
+    "triggeredBy": {
+      "type": "string",
+      "description": "Identity that triggered the run (GitHub login, service principal name, or local user)."
+    },
+    "triggerEvent": {
+      "type": "string",
+      "enum": ["push", "pull_request", "issue_comment", "workflow_dispatch", "schedule", "interactive"]
+    },
+    "runId": {
+      "type": ["string", "null"],
+      "description": "GitHub Actions run ID when triggered by a workflow; null otherwise."
+    },
+    "runUrl": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to the workflow run when applicable."
+    },
+    "stackId": {
+      "type": ["string", "null"],
+      "description": "Full ARM ID of the Azure Deployment Stack when deployMethod=stack. null for subscription-scope deployments without a stack.",
+      "pattern": "^(/subscriptions/[0-9a-f-]{36}/providers/Microsoft\\.Resources/deploymentStacks/[A-Za-z0-9._-]+)?$"
+    },
+    "deployMethod": {
+      "type": "string",
+      "enum": ["stack", "subscription"]
+    },
+    "managedResources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "scope"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^/subscriptions/[0-9a-f-]{36}.*"
+          },
+          "type": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9]+\\.[A-Za-z0-9]+/[A-Za-z0-9]+(/[A-Za-z0-9]+)*$"
+          },
+          "scope": {
+            "type": "string",
+            "enum": ["resourceGroup", "subscription", "managementGroup", "tenant"]
+          },
+          "apiVersion": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(-preview)?$"
+          },
+          "softDeletable": { "type": "boolean" },
+          "purgeProtected": { "type": "boolean" }
+        }
+      }
+    },
+    "resourceGroups": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 90 },
+      "uniqueItems": true
+    },
+    "subscriptions": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "externalReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "targetResourceId"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "examples": ["privateEndpointConnection", "vnetPeering", "dnsZoneRecord", "kvSecretReference"]
+          },
+          "targetResourceId": {
+            "type": "string",
+            "pattern": "^/subscriptions/[0-9a-f-]{36}.*"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../schemas/git-ape/policy-recommendations/v1.json",
+  "schemaVersion": "1.0",
+  "deploymentId": "stack-storage-eastus-001",
+  "generatedAt": "2026-05-06T08:18:00Z",
+  "framework": "azure-best-practices",
+  "enforcementMode": "Audit",
+  "subscriptionAssignments": [],
+  "recommendations": [
+    {
+      "id": "rec-storage-https-only",
+      "severity": "High",
+      "title": "Storage accounts should require secure transfer",
+      "description": "Audit storage accounts where supportsHttpsTrafficOnly is false.",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/404c3081-a854-4457-ae30-26a93ef643f9",
+      "category": "storage",
+      "effect": "Audit",
+      "appliesTo": [
+        {
+          "type": "Microsoft.Storage/storageAccounts",
+          "resourceName": "stdemodev8k3m"
+        }
+      ],
+      "implementation": {
+        "templateChange": "Already applied: supportsHttpsTrafficOnly=true.",
+        "subscriptionAssignment": "Recommended at subscription scope to enforce on future accounts."
+      },
+      "evidence": "Template property properties.supportsHttpsTrafficOnly is set to true.",
+      "reference": "https://learn.microsoft.com/azure/storage/common/storage-require-secure-transfer"
+    },
+    {
+      "id": "rec-storage-tls-min",
+      "severity": "Medium",
+      "title": "Storage accounts should use minimum TLS 1.2",
+      "description": "Audit storage accounts where minimumTlsVersion is below TLS1_2.",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/fe83a0eb-a853-422d-aac2-1bffd182c5d0",
+      "category": "storage",
+      "effect": "Audit",
+      "appliesTo": [
+        {
+          "type": "Microsoft.Storage/storageAccounts",
+          "resourceName": "stdemodev8k3m"
+        }
+      ],
+      "implementation": {
+        "templateChange": "Already applied: minimumTlsVersion=TLS1_2.",
+        "subscriptionAssignment": "Optional at subscription scope."
+      }
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "critical": 0,
+    "high": 1,
+    "medium": 1,
+    "low": 0
+  }
+}

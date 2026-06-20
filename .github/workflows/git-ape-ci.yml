@@ -1,0 +1,224 @@
+name: "Git-Ape: Static Validation"
+
+# Runs every PR with parallel static-validation jobs. Complements (does not
+# duplicate) the existing git-ape-actionlint, git-ape-docs-check, and
+# git-ape-plugin-version-check workflows.
+#
+# Tools are pinned to specific versions to keep CI reproducible.
+
+on:
+  pull_request:
+    paths:
+      - '**/*.sh'
+      - '**/*.bash'
+      - '**/*.bats'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.md'
+      - '**/*.json'
+      - 'schemas/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/git-ape-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.sh'
+      - '**/*.bash'
+      - '**/*.bats'
+      - 'schemas/**'
+      - 'scripts/**'
+      - 'tests/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: git-ape-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned tool versions (bump intentionally; see schemas/README.md).
+  CHECK_JSONSCHEMA_VERSION: "0.37.2"
+  YAMLLINT_VERSION: "1.38.0"
+  MARKDOWNLINT_CLI_VERSION: "0.45.0"
+  BATS_VERSION: "1.11.1"
+  SHELLCHECK_VERSION: "0.10.0"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Bash linting
+  # ---------------------------------------------------------------------------
+  lint-shell:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck (pinned)
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            -o shellcheck.tar.xz
+          tar -xJf shellcheck.tar.xz
+          sudo mv "shellcheck-v${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          rm -rf "shellcheck-v${SHELLCHECK_VERSION}" shellcheck.tar.xz
+          shellcheck --version
+
+      - name: Strict shellcheck on new scripts (scripts/, tests/bash/)
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find scripts tests/bash -type f \
+            \( -name '*.sh' -o -name '*.bash' -o -name '*.bats' \) 2>/dev/null || true)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no new scripts to lint"
+            exit 0
+          fi
+          # bats files are bash; shellcheck reads them with -s bash.
+          shellcheck --severity=style --shell=bash "${files[@]}"
+
+      - name: Error-only shellcheck on existing scripts (.github/)
+        run: |
+          set -euo pipefail
+          # Existing scripts under .github/ predate this CI; we enforce only
+          # `error` severity here so genuine bugs fail CI without blocking on
+          # legacy SC2034/SC2045 warnings. A follow-up issue tracks cleanup.
+          mapfile -t files < <(find .github/scripts .github/skills -type f -name '*.sh' 2>/dev/null || true)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no existing scripts found"
+            exit 0
+          fi
+          shellcheck --severity=error "${files[@]}"
+
+  # ---------------------------------------------------------------------------
+  # YAML linting
+  # ---------------------------------------------------------------------------
+  lint-yaml:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install yamllint (pinned)
+        run: pip install --no-cache-dir "yamllint==${YAMLLINT_VERSION}"
+
+      - name: Run yamllint
+        run: |
+          set -euo pipefail
+          # Advisory in this PR (|| true); follow-up will tighten and fail.
+          yamllint -c .yamllint.yml \
+            .github/workflows \
+            schemas \
+            scripts \
+            tests \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # Markdown linting
+  # ---------------------------------------------------------------------------
+  lint-markdown:
+    name: markdownlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install markdownlint-cli (pinned)
+        run: npm install --no-fund --no-audit --global "markdownlint-cli@${MARKDOWNLINT_CLI_VERSION}"
+
+      - name: Run markdownlint (advisory)
+        run: |
+          set -euo pipefail
+          # Advisory-only in this PR. The existing repo has many docs that
+          # predate markdownlint; a follow-up will tighten and start failing.
+          markdownlint \
+            --ignore website/build \
+            --ignore website/node_modules \
+            --ignore '**/node_modules/**' \
+            --disable MD013 MD033 MD041 MD024 \
+            -- \
+            'README.md' \
+            'SECURITY.md' \
+            'schemas/**/*.md' \
+            'tests/**/*.md' \
+            || true
+
+  # ---------------------------------------------------------------------------
+  # JSON Schema validation
+  # ---------------------------------------------------------------------------
+  validate-schemas:
+    name: JSON Schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check-jsonschema (pinned)
+        run: pip install --no-cache-dir "check-jsonschema==${CHECK_JSONSCHEMA_VERSION}"
+
+      - name: Meta-validate schemas
+        run: |
+          set -euo pipefail
+          for schema in schemas/git-ape/_defs/v1.json \
+                        schemas/git-ape/state/v1.json \
+                        schemas/git-ape/metadata/v1.json \
+                        schemas/git-ape/security-gate/v1.json \
+                        schemas/git-ape/requirements/v1.json \
+                        schemas/git-ape/cost-estimate/v1.json \
+                        schemas/git-ape/policy-recommendations/v1.json \
+                        schemas/git-ape/plugin/v1.json; do
+            check-jsonschema --check-metaschema "$schema"
+          done
+
+      - name: Bulk validate fixtures + plugin.json
+        run: bash scripts/validate-schemas.sh
+
+  # ---------------------------------------------------------------------------
+  # bats-core test suite
+  # ---------------------------------------------------------------------------
+  bats-tests:
+    name: bats
+    runs-on: ubuntu-latest
+    needs: validate-schemas
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check-jsonschema (pinned)
+        run: pip install --no-cache-dir "check-jsonschema==${CHECK_JSONSCHEMA_VERSION}"
+
+      - name: Install bats-core (pinned)
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/bats-core/bats-core/archive/refs/tags/v${BATS_VERSION}.tar.gz" \
+            -o bats.tgz
+          tar -xzf bats.tgz
+          sudo "bats-core-${BATS_VERSION}/install.sh" /usr/local
+          rm -rf "bats-core-${BATS_VERSION}" bats.tgz
+          bats --version
+
+      - name: Run bats suite
+        run: bats tests/bash
